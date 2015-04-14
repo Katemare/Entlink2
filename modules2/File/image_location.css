@@ -1,0 +1,58 @@
+.image_map
+{
+	border:1px dashed;
+	display:inline-block;
+	padding:1px;
+	position:relative;
+	max-width:471px;
+	max-height:500px;
+	overflow:auto;
+	
+	-moz-user-select: none; 
+	-khtml-user-select: none; 
+	-webkit-user-select: none; 
+	-o-user-select: none; 
+}
+
+.image_map.editable > *
+{
+	cursor:crosshair;
+}
+
+.image_map .pointer, .image_map .fragment_border
+{
+	position:absolute;
+	display:none;
+}
+
+.image_map .fragment_border
+{
+	border:1px solid black;
+	background-color:transparent;
+	z-index:10;
+}
+
+.image_map .pointer
+{
+	z-index:20;
+	cursor:pointer;
+}
+
+.image_map .pointer.input, .image_map .fragment_border.input
+{
+	pointer-events:none;
+}
+
+.image_map .fragment_border.marker.highlighted
+{
+	border-color:red;
+}
+
+.map_canvas
+{
+	position:absolute;
+	left:0px;
+	top:0px;
+	z-index:30;
+	pointer-events:none;
+}

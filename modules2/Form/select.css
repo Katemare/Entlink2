@@ -1,0 +1,106 @@
+
+.searchable_select
+{
+    margin-left:auto;
+    margin-right:auto;
+	margin-top:4px;
+	margin-bottom:4px;
+    padding:0;
+    position:relative;
+    width:230px;
+	height:20px;
+	pointer-events:none;
+	display:inline-block;
+}
+
+.searchable_select > *
+{
+    position:absolute;
+}
+
+.searchable_select button, .searchable_select input, .searchable_select select
+{
+	pointer-events:auto;
+}
+
+.searchable_select > input
+{
+    left:0;
+    width:205px;
+    z-index:1;
+}
+
+.searchable_select > button
+{
+    font-size:10px;
+    height:20px;
+    padding:0;
+    right: 0;
+    top: 0;
+    width: 20px;
+    z-index: 5;
+}
+
+.searchable_select > .select_container
+{
+	width:100%;
+	position:relative;
+	z-index:50;
+}
+
+.searchable_select > .select_container > select
+{
+	position:relative;
+	z-index:10;
+    right:0;
+    top:20px;
+    width:230px;
+	display:none;
+}
+
+.searchable_select > .select_container > select > option:hover
+{
+	background-color: rgba(255,255,255,0.5);
+}
+
+.searchable_select > .select_container > select > option:hover[value=""]
+{
+	background-color: rgba(255,0,0,0.5);
+}
+
+.searchable_select > .select_container.single_option
+{
+	overflow:hidden;
+	height:50px;
+}
+
+.searchable_select > .select_container.single_option > select:hover
+{
+	background-color:white;
+}
+
+.searchable_select > .select_container.single_option > select
+{
+	width:calc(100% + 18px)
+}
+
+.searchable_select .loading
+{
+	z-index:10;
+	display:none;
+	width:20px;
+	height:20px;
+	background-image:url('../../files/common_frontend/loading.gif');
+}
+
+.searchable_select .loading.visible
+{
+	display:block;
+	right:20px;
+}
+
+.searchable_select.bad_selection input, .searchable_select.bad_selection button
+{
+	box-shadow:0px 0px 2px red;
+	background-color:pink;
+}

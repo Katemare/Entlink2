@@ -1,0 +1,60 @@
+.multiselect_slug, .multiselect_slug .close
+{
+	display:inline-block;
+}
+.multiselect_slug
+{
+	border:1px solid black;
+	cursor:pointer;
+	background-color:rgba(200,200,200,0.2);
+	padding:3px;
+	margin:3px;
+}
+.multiselect_slug:hover
+{
+	background-color:rgba(200,200,200,0.3);
+}
+
+.multiselect_slug .close
+{
+	width:17px;
+	height:20px;
+	border:1px solid transparent;
+	text-align:center;
+	margin-left:3px;
+	padding-left:5px;
+}
+.multiselect_slug .close:hover
+{
+	border:1px solid gray;
+	background-color:rgba(200,200,200,0.2);
+}
+
+.list_subfield, .subfields_container
+{
+	position:relative;
+	width:100%;
+}
+
+.list_subfield > .close, .list_subfield > .up_button, .list_subfield > .down_button
+{
+	position: absolute;
+	right: 5px;
+	top: 5px;
+	width:30px;
+}
+
+.list_subfield > .close
+{
+	right: 5px;
+}
+
+.list_subfield > .up_button
+{
+	right: 63px;
+}
+
+.list_subfield > .down_button
+{
+	right: 34px;
+}

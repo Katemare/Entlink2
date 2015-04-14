@@ -1,0 +1,37 @@
+
+.collapsible, .requestable, .collapsed
+{
+	position:relative;
+	min-height:9px;
+}
+
+.requestable, .collapsed
+{
+	display:none;
+}
+
+.element_expander
+{
+	position:absolute;
+	right:22px;
+	bottom:1px;
+	width:10px;
+	height:10px;
+	cursor:pointer;
+}
+
+/* STUB: в будущем этот файл будет подключаться раньше, чем файл игры, и эта часть будет в нём. */
+
+.element_expander
+{
+	width:100%;
+	height:100%;
+	background-position:bottom right;
+	background-repeat:no-repeat;
+	background-image: url("/entlink/files/adopts_frontend/more_text.png");
+}
+
+.element_expander.collapse
+{
+	background-image: url("/entlink/files/adopts_frontend/less_text.png");
+}
