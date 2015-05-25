@@ -149,7 +149,7 @@ abstract class Task_process_search_form extends Task_for_fieldset
 		}
 		elseif ($this->step===static::STEP_ANALYZE_EXACT)
 		{
-			if ($this->exact_entity->has_db_id()) Engine()->redirect($this->exact_entity->value('profile_url'));
+			if ($this->exact_entity->has_db_id()) Router()->redirect($this->exact_entity->value('profile_url'));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_REQUEST_COUNT)
@@ -237,7 +237,7 @@ class Template_search_form extends Template_form
 	public function initiated()
 	{
 		parent::initiated();
-		$this->page->register_requirement('js', Engine()->module_url('Form', 'search.js'));
+		$this->page->register_requirement('js', Router()->module_url('Form', 'search.js'));
 	}
 }
 

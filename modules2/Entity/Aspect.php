@@ -4,11 +4,13 @@
 
 class Aspect implements Templater
 {	
-	use Prototyper_bare, Report_spawner;
+	use Prototyper_bare, Report_spawner, Page_spawner;
 
 	const
 		MODEL_MODIFIED=false,
-		MODEL_REDECLARED=false;
+		MODEL_REDECLARED=false,
+		
+		STANDARD_PAGE_CLASS='Page_view_from_db';
 	
 	static
 		$init=false,
@@ -17,6 +19,7 @@ class Aspect implements Templater
 		$templates=[],
 		$tasks=[],
 		$rights=[], // права похожи на задачи, но отличаются тем, что обязательно обрабатывают пользователя, а также запрашиваются по очереди у всех аспектов, у которых такое право перечислено.
+		$pages=[],	// отвечают за страницы (Page) и их адреса (URL).
 		$basic=false; // должен быть установлен на истину в базовых аспектах, данные которых содержат айди и так далее. STUB: возможно, в будущем будет интерфейсом или чертой.
 	
 	public
@@ -47,10 +50,13 @@ class Aspect implements Templater
 					if (array_key_exists($code, static::$common_model))
 					{
 						if (array_key_exists('table', static::$common_model[$code])) $data['table']=static::$common_model[$code]['table'];
-						static::$common_model[$code]=$data;
-						static::init_id($code); // само разбирает, нужно ли добавлять поле сущности.
 					}
-					else die ('UNIMPLEMENTED YET: append model'); // static::$common_model[$code]=$data;
+					else
+					{
+						if (array_key_exists('table', $data)) $data['table']=static::$default_table;
+					}
+					static::$common_model[$code]=$data;
+					static::init_id($code); // само разбирает, нужно ли добавлять поле сущности.
 				}
 			}
 		}
@@ -64,6 +70,11 @@ class Aspect implements Templater
 				}
 			
 				static::init_id($code, true); // само разбирает, нужно ли добавлять поле сущности.
+			}
+			
+			foreach (static::$pages as $code=>&$data)
+			{
+				if (!array_key_exists('page_action', $data)) $data['page_action']=$code;
 			}
 			
 			if ( (static::$basic) && (!array_key_exists('id', static::$common_model)) )
@@ -241,9 +252,77 @@ class Aspect implements Templater
 		return $this->sign_report(new Report_task($task));
 	}
 	
-	public function cloned_from_pool($pool)
+	public function page($action, $parts=[], $route=[])
 	{
+		if (!empty($action))
+		{
+			$route['entity_action']=$action;
+		}
+		$page_code=$this->find_page($action, $route);
+		if (empty($page_code)) return;
+		if (empty($action))
+		{
+			$route['url_formation'] = (empty($route['entity_hint']) ? Router::URL_MODULE_TYPE_ID : Router::URL_MODULE_TYPE_ID_HINT);
+		}
+		else
+		{
+			$route['url_formation'] = (empty($route['entity_hint']) ? Router::URL_MODULE_TYPE_ID_ACTION : Router::URL_MODULE_TYPE_ID_HINT_ACTION);
+		}
+		$page_data=static::$pages[$page_code];
+		$page=static::spawn_page_by_data($page_data, $parts, $route, static::STANDARD_PAGE_CLASS);
+		if (empty($page)) return;
+		if ($page instanceof Page_entity) $page->set_entity($this->entity);
+		return $page;
 	}
+	
+	public function find_page(&$action, $route)
+	{
+		$found=null;
+		foreach (static::$pages as $code=>$data)
+		{
+			if ($action===null)
+			{
+				if ($data['default'])
+				{
+					$found=$code;
+					break;
+				}
+			}
+			else
+			{
+				if ($action===$data['page_action'])
+				{
+					$found=$code;
+					if (!empty($data['default'])) $action=null;
+					break;
+				}
+			}
+		}
+		
+		if ($found===null) return;
+		foreach ($route as $route_code=>$slug)
+		{
+			if (!array_key_exists($route_code, $data)) continue;
+			if (is_array($data[$route_code]))
+			{
+				if (!in_array($slug, $data[$route_code])) return;
+			}
+			else
+			{
+				if ($slug!==$data[$route_code]) return;
+			}
+		}
+		return $found;
+	}
+	
+	public function page_request($action, $parts=[])
+	{
+		return $this->page($action, $parts); // отличаются тем, как их обрабатывает EntityType
+	}
+	
+	public function cloned_from_pool($pool) { }
+	
+	public function destroy() { }
 }
 
 ?>

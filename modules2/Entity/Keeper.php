@@ -228,7 +228,7 @@ class Keeper_var extends Keeper
 	
 	public function prepare_result($result)
 	{
-		return reset($result);
+		return $result;
 	}
 	
 	public function load($master_filler=true)
@@ -280,7 +280,7 @@ class Keeper_var extends Keeper
 			if (is_array($val)) $result=$val;
 			if (is_numeric($val)) $result['number']=$val;
 			else $result['str']=$val;
-			$request_data[static::VAR_TABLE][$this->code()]=$result;
+			$request_data[static::VAR_TABLE][$this->code()]=$val;
 		}
 	}
 }

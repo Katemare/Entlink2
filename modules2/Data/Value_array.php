@@ -45,7 +45,7 @@ class Value_array extends Value implements Value_provides_options, Pathway
 		if (!is_array($content)) return $content;
 		return implode(static::FOR_INPUT_JOINER, $this->content());
 	}
-		
+	
 	public function legal_value($content)
 	{
 		if (!is_array($content)) return $this->sign_report(new Report_impossible('not_array'));
@@ -69,8 +69,6 @@ class Value_array extends Value implements Value_provides_options, Pathway
 	{
 		if ( (is_string($data)) && ($this->in_value_model('element_ex')) && (!preg_match($this->value_model_now('element_ex'), $data)) )
 		{
-			// vdump($this->value_model_now('element_ex'));
-			// vdump($data);
 			return $this->sign_report(new Report_impossible('bad_element'));
 		}
 		return $data;
@@ -177,13 +175,32 @@ class Value_int_array extends Value_array
 	}
 }
 
-class Value_keyword_array extends Value_array
+class Value_string_array extends Value_array
 {
+	public
+		$string_type='string',
+		$str_min=null,
+		$str_max=null;
+	
 	public function legal_element($data, $key)
 	{
-		if (preg_match('/[^'.Value_keyword::GOOD_SYMBOLS.']/u', $data)) return $this->sign_report(new Report_impossible('bad_keyword'));
-		return $data;
+		$value=Value::standalone($this->string_type);
+		$value->min=$this->str_min;
+		$value->max=$this->str_max;
+		return $value->legal_value($data);
 	}
+}
+
+class Value_keyword_array extends Value_string_array
+{
+	public
+		$string_type='keyword';
+}
+
+class Value_title_array extends Value_array
+{
+	public
+		$string_type='title';
 }
 
 class Value_serialized_array extends Value_array

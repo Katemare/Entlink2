@@ -4,16 +4,7 @@
 
 // пока используется только для хранения констант.
 class Contribution extends EntityType
-{
-	const
-		MOD_NOT_CHECKED	=0,	// на модерации, решение ещё не вынесено.
-		MOD_APPROVED	=1, // решение вынесено - работа принята.
-		MOD_REJECTED	=2, // решение вынесено - работа отклонена.
-		MOD_WIP			=3,	// работа создана, но ещё не готова для модерации.
-		MOD_STABILIZED	=4, // на модерации, решение ещё не вынесено, но редактирование уже отключено.
-		MOD_POLISH		=5, // решение вынесено - работа принята, но ещё не преобразована модерами в итоговый формат.
-		MOD_AUTO_APPROVED=6; // автоматически утверждено, то есть лично модеры всё-таки не смотрели.
-	
+{	
 	static
 		$default_table='contributions';
 }
@@ -55,32 +46,12 @@ class Contribution_identity extends Aspect
 			],
 			'contribution_date'=>
 			[
-				'type'=>'time'
+				'type'=>'timestamp'
 			],
 			'available'=>
 			[
 				'type'=>'bool',
 				'default'=>true
-			],
-			'moderated'=>
-			[
-				'type'=>'enum',
-				'options'=>
-				[
-					Contribution::MOD_NOT_CHECKED,	Contribution::MOD_APPROVED,		Contribution::MOD_REJECTED,
-					Contribution::MOD_WIP,			Contribution::MOD_STABILIZED, 	Contribution::MOD_POLISH,
-					Contribution::MOD_AUTO_APPROVED
-				],
-				'default'=>Contribution::MOD_AUTO_APPROVED
-			],
-			'credits'=>
-			[
-				'type'=>'linkset',
-				'id_group'=>'User',
-				'select'=>'generic_linked',
-				'position'=>Request_generic_links::FROM_SUBJECT,
-				'opposite_id_group'=>'Contribution',
-				'relation'=>'credit'
 			]
 		],
 		$templates=
@@ -147,8 +118,8 @@ class Template_contribution_from_db extends Template_from_db
 {
 	public function initiated()
 	{
-		$this->page->register_requirement('js', Engine()->module_url('User', 'contribution.js'));
-		$this->page->register_requirement('css', Engine()->module_url('User', 'contribution.css'));
+		$this->page->register_requirement('js', Router()->module_url('User', 'contribution.js'));
+		$this->page->register_requirement('css', Router()->module_url('User', 'contribution.css'));
 		parent::initiated();
 	}
 }

@@ -126,7 +126,7 @@ abstract class Form extends FieldSet
 	
 	public function redirect_back()
 	{
-		Engine()->get_back();
+		Router()->get_back();
 	}
 }
 
@@ -160,7 +160,7 @@ class Template_form extends Template_fieldset
 		if ($code==='action')
 		{
 			if (empty($this->form->slug)) return $this->form->action;
-			return Engine()->url('modules2/form.php');
+			return Router()->url('modules2/form.php');
 		}
 		if ($code==='slug') return (string)$this->form->slug;
 		if ($code==='method') return $this->form->method();
@@ -219,7 +219,7 @@ class Page_form extends Page_operation
 		if ($task instanceof Task)
 		{
 			$task->complete();
-			global $debug; if ($debug) { debug_dump(); die('MEOW'); }
+			// global $debug; if ($debug) { debug_dump(); die('MEOW'); }
 			$form->redirect_by_task($task);
 		}
 		elseif ($task instanceof Report)

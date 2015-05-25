@@ -11,7 +11,7 @@ trait FieldSet_about_entity
 		$entity=null,
 		$id_group=null,
 		$entity_fields=null,
-		$target_url_field='profile_url';
+		$target_page='profile_page';
 		
 	public function make_tracks()
 	{
@@ -156,7 +156,7 @@ abstract class Form_entity extends Form implements FieldSet_provides_entity
 		
 	public function redirect_successful()
 	{
-		Engine()->redirect($this->entity()->value($this->target_url_field));
+		Router()->redirect($this->entity()->url($this->target_page));
 	}
 }
 

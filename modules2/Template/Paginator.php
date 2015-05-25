@@ -92,7 +92,7 @@ class Template_pages extends Template_from_db
 	
 	public function page_url($page)
 	{
-		return Engine()->compose_url($this->url_base, [$this->page_var=>$page]);
+		return Router()->compose_url($this->url_base, [$this->page_var=>$page]);
 	}
 	
 	public function ValueHost_request($code)
@@ -115,7 +115,7 @@ class Template_pages extends Template_from_db
 	
 	public function url_base()
 	{
-		return Engine()->compose_url(null, [$this->page_var=>null]);
+		return Router()->compose_url(null, [$this->page_var=>null]);
 	}
 	
 	public function page_numbers()
@@ -187,7 +187,7 @@ class Template_paginator_page extends Template_from_db
 	{
 		$page_number=$this->page_number;
 		if ($page_number==1) $page_number=null;
-		return Engine()->compose_url(null, [$this->paginator->page_var=>$page_number]);
+		return Router()->compose_url(null, [$this->paginator->page_var=>$page_number]);
 	}
 }
 ?>

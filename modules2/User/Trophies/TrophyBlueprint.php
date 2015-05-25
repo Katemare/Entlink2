@@ -14,6 +14,7 @@ class TrophyBlueprint extends EntityType
 	
 	static
 		$init=false,
+		$module_slug='users',
 		$data_model=[],
 		$map=[],
 		$pathway_tracks=[],

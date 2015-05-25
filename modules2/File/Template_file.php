@@ -109,7 +109,7 @@ class Template_img_modulated_src extends Template
 			$path=$this->file->value('path');
 			$name=$this->file->value('name');
 			$this->modulated_path=$target=Engine()->server_address($path.'/modulated/'.$this->modulation_code.'.'.$name);
-			$this->modulated_url=$target=Engine()->url($path.'/modulated/'.$this->modulation_code.'.'.$name);
+			$this->modulated_url=$target=Router()->url($path.'/modulated/'.$this->modulation_code.'.'.$name);
 			if (file_exists($this->modulated_path)) return $this->advance_step(static::STEP_FINISH);
 			return $this->advance_step();
 		}

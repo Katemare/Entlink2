@@ -12,7 +12,7 @@ class Dependancy_call extends Call
 	public function register($host, $pool='default')
 	{
 		$this->host=$host;
-		if ($this->master->is_needed()) $this->host->increase_need_by($this->master);
+		if ( ($this->master instanceof Task) && ($this->master->is_needed()) ) $this->host->increase_need_by($this->master);
 		$this->pool=$pool;
 		$this->host->add_call($this, $pool);
 		$this->register_at_master();
@@ -32,7 +32,7 @@ class Dependancy_call extends Call
 	{
 		if (is_object($this->host))
 		{
-			if ($this->master->is_needed()) $this->host->decrease_need_by($this->master); // если родительская задача была не нужна, то она и не добавляла единичку зависимости.
+			if ( ($this->master instanceof Task) && ($this->master->is_needed()) ) $this->host->decrease_need_by($this->master); // если родительская задача была не нужна, то она и не добавляла единичку зависимости.
 			unset($this->host->caller_calls[$this->pool][$this->object_id]);
 		}
 		$this->unregister_at_master();
@@ -180,6 +180,13 @@ abstract class Task
 		$process->complete();
 		if ($process->failed()) $this->impossible($process->errors);
 		$this->finalize();
+	}
+	
+	public function now()
+	{
+		$this->complete();
+		if ($this->failed()) return $this->report();
+		return $this->resolution;
 	}
 	
 	public abstract function progress();

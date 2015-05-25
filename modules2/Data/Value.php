@@ -160,7 +160,7 @@ abstract class Value implements Templater, ValueHost, ValueContent
 		// важно, что этот вызов происходит после того, как мы убедились, что значения отличаются. значит, в случае ввода значения BY_INPUT, если оно не отличается от введённого BY_KEEPER, параметр $save_changes не будет изменён на true, ведь мы до этого шага даже не дошли.
 		$this->make_calls('before_set', $content, $source); // STUB: в будущем может обрабатывать ответ от подписанных вызовов.
 		
-		if ( (empty($this->master)) || (!$this->master->changed_from_db) || /* ??? */ ($source===static::BY_KEEPER) ) $this->valid=true;
+		if ( (empty($this->master)) || (!$this->master->changed_from_db) /* ||  ???  ($source===static::BY_KEEPER) */ ) $this->valid=true;
 		// данные свободных значений (уж точно не являющихся частью сущности) или набора, не имеющего изменений по сравнению с БД (потому что данные не менялись или же потому что они вообще не из БД и не для БД), заведомо правильные при условии, что они нормализованы. значение changed_from_db меняется в вызовах before_set заинтересованными объектами. причём эта переменная у всего пула и его сущностей общая.
 		else // эта ветка отвечает за случай, когда данные изменились по сравнению с БД. потому что если нет, то зависимые значения не требуют пересчёта. может, мы просто получили и присвоили значение из БД или же получили авто-значение на основе данных из БД.
 		{
@@ -335,6 +335,13 @@ abstract class Value implements Templater, ValueHost, ValueContent
 	public function valid_content_request()
 	{
 		return $this->valid_content(false);
+	}
+	
+	public function is_content_nondefault()
+	{
+		if (!$this->in_value_model('default')) return false;
+		if ($this->content()!==$this->value_model_now('default')) return false;
+		return true;
 	}
 	
 	public function dependants_are_irrelevant()
@@ -518,6 +525,7 @@ abstract class Value implements Templater, ValueHost, ValueContent
 	{
 		if ($this->model==$new_model) return;
 		$this->model=$new_model;
+		$this->valid=null;
 		$this->auto_mode();
 		$this->irrelevant_by($new_model);
 	}

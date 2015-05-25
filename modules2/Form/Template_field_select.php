@@ -88,8 +88,8 @@ class Template_field_select extends Template_field implements Template_field_var
 	{
 		if (!empty($this->page))
 		{
-			$this->page->register_requirement('js', Engine()->module_url('Form', 'select.js'), Page::PRIORITY_CONSTRUCT_LAYOUT);
-			$this->page->register_requirement('css', Engine()->module_url('Form', 'select.css'), Page::PRIORITY_CONSTRUCT_LAYOUT);
+			$this->page->register_requirement('js', Router()->module_url('Form', 'select.js'), Page::PRIORITY_CONSTRUCT_LAYOUT);
+			$this->page->register_requirement('css', Router()->module_url('Form', 'select.css'), Page::PRIORITY_CONSTRUCT_LAYOUT);
 		}
 		$this->auto_mode();
 	}

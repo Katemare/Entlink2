@@ -1,7 +1,7 @@
 <?
 // FIX: в будущем подобные специфические правила страницы должны быть сделаны неким общим механизмом.
 
-class Page_file_from_db extends Page_view_from_db implements Page_supplies_pgtitle
+class Page_file_from_db extends Page_view_from_db
 {
 	public
 		$db_key_base='file',
@@ -17,7 +17,7 @@ class Page_file_from_db extends Page_view_from_db implements Page_supplies_pgtit
 	// FIX! страница должна как-то иначе получать сведения о стандартном оформлении. может быть, это не исключительная ситуация, когда страница одного модуля должна быть заключена в оформление другого.
 	public function create_content()
 	{
-		$this->register_requirement('css', Engine()->module_url('AdoptsGame', 'adopts.css'));
+		$this->register_requirement('css', Router()->module_url('AdoptsGame', 'adopts.css'));
 		return parent::create_content();
 	}
 }
@@ -240,8 +240,8 @@ class Page_file_image_locations extends Page_file_view
 	
 	public function create_content()
 	{
-		$this->register_requirement('css', Engine()->module_url('File', 'image_location.css'));
-		$this->register_requirement('js', Engine()->module_url('File', 'image_location.js'));
+		$this->register_requirement('css', Router()->module_url('File', 'image_location.css'));
+		$this->register_requirement('js', Router()->module_url('File', 'image_location.js'));
 		return parent::create_content();
 	}
 }

@@ -4,6 +4,7 @@ class File extends EntityType
 {
 	static
 		$init=false,
+		$module_slug='file',
 		$data_model=[],
 		$map=[],
 		$pathway_tracks=[],
@@ -96,7 +97,7 @@ class File_basic extends Aspect
 		
 	public function url()
 	{
-		return Engine()->url($this->entity->value('path').'/'.$this->entity->value('name'));
+		return Router()->url($this->entity->value('path').'/'.$this->entity->value('name'));
 	}
 	
 	public function server_address()
@@ -106,7 +107,7 @@ class File_basic extends Aspect
 	
 	public function info_url()
 	{
-		return Engine()->url('gallery/file_info.php?id='.$this->entity->value('id')); // STAB
+		return Router()->url('gallery/file_info.php?id='.$this->entity->value('id')); // STAB
 	}
 	
 	public function pretty_path()

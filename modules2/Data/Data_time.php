@@ -49,7 +49,7 @@ class Convert_time_to_days extends Convert_time
 }
 
 // не находится в файле Data_time потому, что может быть нужна и без всяких ухищрений типа перевода секунд в часы.
-class Value_time extends Value_unsigned_int
+class Value_timestamp extends Value_unsigned_int
 {
 	const
 		DEFAULT_FORMAT='j M Y H:i';

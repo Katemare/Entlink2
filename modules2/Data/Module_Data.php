@@ -24,6 +24,7 @@ class Module_Data extends Module implements Templater
 			'Value_array'=>'Value_array',
 			'Value_int_array'=>'Value_array',
 			'Value_keyword_array'=>'Value_array',
+			'Value_string_array'=>'Value_array',
 			'Value_serialized_array'=>'Value_array',
 			
 			'ValueModel'=>'Data_interfaces',

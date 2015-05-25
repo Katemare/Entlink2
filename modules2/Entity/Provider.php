@@ -38,7 +38,11 @@ abstract class Provider extends Task_for_entity
 		if ($this->entity->provider===$this)
 		{
 			$this->entity->provider=null;
-			if ($success===true) $this->entity->receive_db_id($this->resolution);
+			if ($success===true)
+			{
+				$this->entity->receive_db_id($this->resolution);
+				$this->entity->verified();
+			}
 			else $this->entity->failed_db_id();
 		}
 		parent::finish($success);

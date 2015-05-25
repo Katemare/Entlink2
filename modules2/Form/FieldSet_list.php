@@ -448,8 +448,8 @@ class Template_fieldset_list extends Template_fieldset
 	{
 		if (!empty($this->page))
 		{
-			$this->page->register_requirement('js', Engine()->module_url('Form', 'list.js'), Page::PRIORITY_INTERACTION_FRAMEWORK);
-			$this->page->register_requirement('css', Engine()->module_url('Form', 'list.css'));
+			$this->page->register_requirement('js', Router()->module_url('Form', 'list.js'), Page::PRIORITY_INTERACTION_FRAMEWORK);
+			$this->page->register_requirement('css', Router()->module_url('Form', 'list.css'));
 		}
 		parent::initiated();
 	}

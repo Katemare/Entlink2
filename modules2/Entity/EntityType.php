@@ -10,7 +10,7 @@ class Dependancy_call_aspect_shift extends Dependancy_call
 	{
 		if ($this->aspect_code!==null)
 		{
-			array_unshift($this->aspect_code, $this->post_args);
+			array_unshift($this->standard_args, $this->aspect_code);
 			$this->aspect_code=null;
 		}
 	}
@@ -30,13 +30,18 @@ class Dependancy_call_aspect_shift extends Dependancy_call
 
 abstract class EntityType implements Templater, Pathway // на самом деле к типизатору в этом качестве обращается только сущность, но интерфейсам он всё равно соответствует.
 {
-	use Logger_Entity;
+	use Logger_Entity, Prototyper_bare, Report_spawner, Page_spawner;
 	
 	const
-		VALUE_NAME=1,
-		TASK_NAME=2,
-		TEMPLATE_NAME=3,
-		RIGHT_NAME=4,
+		VALUE_NAME		=1,
+		TASK_NAME		=2,
+		TEMPLATE_NAME	=3,
+		RIGHT_NAME		=4,
+		PAGE_NAME		=5,
+		
+		STANDARD_PAGE_CLASS='Page_view_from_db',
+		DEFAULT_PAGE_ACTION='profile',
+		ENTITY_ID_PAGE_EX='/^(?<id>\d{1,20})(_(?<hint>[a-zA-Z_\d]+))?$/',
 		
 		// ответы проверки прав:
 		RIGHT_FINAL_ALLOW=1,	// окончательное "да", несмотря на любые другие проверки.
@@ -44,12 +49,13 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		RIGHT_WEAK_ALLOW=3,		// слабое "да": если есть хотя бы одно, то в отсутствие слабых "нет" итог будет "да".
 		RIGHT_WEAK_DENY=4,		// слабое "нет": хотя бы одно слабое "нет" означает отказ, но допускает возможность итогового "да" в цепочке.
 		RIGHT_NO_CHANGE=0;	// если все результаты NO_CHANGE, то итог будет "нет".
-		
-	use Prototyper_bare, Report_spawner;
 	
 	static
 //		$init=false,
-		$data_model=[],		 // этот массив содержит общую модель данных, которая пока что не должна меняться при замене аспектов. а именно, не могут меняться типы данных, их хранение и зависимости. Способ заполнения данных и параметры валидации могут меняться.
+
+		$module_slug=null,	// кодовое слово родительского модуля, для определения URL связанных страниц.
+
+		$data_model=[],		// этот массив содержит общую модель данных, которая пока что не должна меняться при замене аспектов. а именно, не могут меняться типы данных, их хранение и зависимости. Способ заполнения данных и параметры валидации могут меняться.
 		
 		$map=[],			 // это список значений, задач и шаблонов в виде соответствий "код => [код аспекта, тип обращения]" (тип обращения - значение, задача или шаблон)
 		
@@ -59,7 +65,11 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		
 		$base_aspects=[],	 // базовые аспекты, из которых берётся модель данных.
 		
-		$variant_aspects=[]; // соответствия "код аспекта => класс задачи-детерминатора" для тех базовых аспектов, которые могут быть реализованы разными классами. Например, у покемонов есть код аспекта disposition, которому соответствует абстрактный базовый аспект Pokemon_disposition. В зависимости от того, принадлежит ли покемон тренеру, находится ли он в яйце и каково его расположение, у сущностей-покемонов этот аспект заполняется объектом класса Pokemon_owned, Pokemon_lab_egg, Pokemon_sheltered и так далее.
+		$variant_aspects=[], // соответствия "код аспекта => класс задачи-детерминатора" для тех базовых аспектов, которые могут быть реализованы разными классами. Например, у покемонов есть код аспекта disposition, которому соответствует абстрактный базовый аспект Pokemon_disposition. В зависимости от того, принадлежит ли покемон тренеру, находится ли он в яйце и каково его расположение, у сущностей-покемонов этот аспект заполняется объектом класса Pokemon_owned, Pokemon_lab_egg, Pokemon_sheltered и так далее.
+		
+		$page_actions=[],
+		
+		$id_group=null; // группа айди - такая же, как название класса.
 	
 	public
 		$entity,
@@ -72,13 +82,14 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		foreach (static::$base_aspects as $aspect_code=>$aspect_class)
 		{
 			$aspect_class::init();
-			static::$data_model=array_merge(static::$data_model, $aspect_class::$common_model); // из моделей аспектов требуется только список значений, их типы и сведения для работы Кипера, но отделять нужное от ненужного - лишние ресурсы. Лишний расход памяти невелик благодаря принципу copy-on-write, а не нужное просто не используется.
+			static::$data_model=array_merge(static::$data_model, $aspect_class::$common_model);
 			static::$map=array_merge
 			(
 				static::$map,
 				array_fill_keys( array_keys($aspect_class::$common_model), [$aspect_code, static::VALUE_NAME] ),
 				array_fill_keys( array_keys($aspect_class::$templates), [$aspect_code, static::TEMPLATE_NAME] ),
-				array_fill_keys( array_keys($aspect_class::$tasks), [$aspect_code, static::TASK_NAME] )
+				array_fill_keys( array_keys($aspect_class::$tasks), [$aspect_code, static::TASK_NAME] ),
+				array_fill_keys( array_map(function($code) { return $code.'_page'; }, array_keys($aspect_class::$pages)), [$aspect_code, static::PAGE_NAME] )
 			);
 			if (!empty($aspect_class::$rights))
 			{
@@ -132,40 +143,54 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		return $type;
 	}
 	
+	public function refine_type($type_code)
+	{
+		if ($type_code===get_class($this)) return $this;
+		$type=static::for_entity($type_code, $this->entity);
+		return $type;
+	}
+	
+	public function resolve_type()
+	{
+		return $this;
+	}
+	
 	public function setup()
 	{
-		if ( (!is_null($this->entity->type)) && ($this->entity->type!==$this) ) $this->retype_entity();
+		if ( ($this->entity->type!==null) && ($this->entity->type!==$this) ) $this->retype_entity();
+		else $this->entity->type=$this;
+		if (empty(static::$id_group)) $this->entity->id_group=get_class($this);
+		else $this->entity->id_group=static::$id_group;
 		// к этому моменту тип уже инициирован.
 		$this->entity->dataset->model=static::$data_model; // если модель не меняется, то благодаря системе "copy on write" лишняя память не расходуется.
 		$this->prepare_aspects();
 	}
 	
 	// при текущем коде подготовка не требуется.
-	public function prepare_aspects()
-	{
-	}
+	public function prepare_aspects() { }
 	
 	// вызывается до того, как сущность запомнила созданный новый тип, если у неё уже есть другой тип.
 	public function retype_entity()
 	{
-		die ('RETYPE UNIMPLEMENTED');
 		$old_type=$this->entity->type;
+		if ($old_type===$this) return;
+		$old_type->detach();
 		foreach ($this->entity->aspects as $aspect_code=>$aspect_data)
 		{
-			if (!array_key_exists($aspect_code, static::$aspects))
+			if (!array_key_exists($aspect_code, static::$base_aspects))
 			{
 				$this->entity->remove_aspect($aspect_code);
 				continue;
 			}
-			$aspect_class=$this->resolve_aspect_class($aspect_code);
+			$aspect_class=static::$base_aspects[$aspect_code];
 			if ( (is_string($aspect_data)) && ($aspect_data===$aspect_class) ) continue;
-			if ( (is_object($aspect_data)) && (get_class($aspect_data)===$aspect_class) )
-			{
-				// тут можно скопировать закэшированные ответы, но пусть лучше наполняются по мере необходимости - аспекты и так должны их лихо отдавать.
-				continue;
-			}
+			if ( (is_object($aspect_data)) && (get_class($aspect_data)===$aspect_class) ) continue;
+				
 			$this->entity->remove_aspect($aspect_code);
 		}
+		
+		$this->entity->type=$this;
+		$this->entity->dataset->model=static::$data_model;
 	}
 	
 	// сюда скрипт попадает только в случае, если сущность сама не может разобраться. Это случается только с вариантными аспектами или когда запрошенный код аспекта вообще отсутствует в предварительном списке.
@@ -201,8 +226,19 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 	public function determine_aspect($aspect_code)
 	{
 		if (!array_key_exists($aspect_code, static::$variant_aspects)) die ('NO VARIANT ASPECT TASK');
-		$class=static::$variant_aspects[$aspect_code];
-		$task=$class::aspect_for_entity($aspect_code, $this->entity);
+		
+		$data=static::$variant_aspects[$aspect_code];
+		if (is_string($data))
+		{
+			$class=$data;
+			$model=[];
+		}
+		else
+		{
+			$class=$data['task_class'];
+			$model=$data;
+		}
+		$task=$class::aspect_for_entity($aspect_code, $this->entity, $model);
 		return $task;
 	}
 	
@@ -321,28 +357,31 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		// нельзя называть значения или задачи этими словами, котому что они ключевые (см. выше)
 		$special_calls=
 		[
-			'value'=>EntityType::VALUE_NAME,
-			'request'=>EntityType::VALUE_NAME,
-			'task'=>EntityType::TASK_NAME,
-			'task_request'=>EntityType::TASK_NAME,
-			'template'=>EntityType::TEMPLATE_NAME,
-			'value_object'=>EntityType::VALUE_NAME,
-			'value_object_request'=>EntityType::VALUE_NAME,
-			'valid_content'=>EntityType::VALUE_NAME,
-			'valid_content_request'=>EntityType::VALUE_NAME,
+			'value'					=>EntityType::VALUE_NAME,
+			'request'				=>EntityType::VALUE_NAME,
+			'task'					=>EntityType::TASK_NAME,
+			'task_request'			=>EntityType::TASK_NAME,
+			'template'				=>EntityType::TEMPLATE_NAME,
+			'value_object'			=>EntityType::VALUE_NAME,
+			'value_object_request'	=>EntityType::VALUE_NAME,
+			'valid_content'			=>EntityType::VALUE_NAME,
+			'valid_content_request'	=>EntityType::VALUE_NAME,
 			
-			'right'=>EntityType::RIGHT_NAME,
-			'right_request'=>EntityType::RIGHT_NAME,
-			'my_right'=>EntityType::RIGHT_NAME,
-			'my_right_request'=>EntityType::RIGHT_NAME,
+			'page'					=>EntityType::PAGE_NAME,
+			'page_request'			=>EntityType::PAGE_NAME,
 			
-			'model'=>EntityType::VALUE_NAME
+			'right'					=>EntityType::RIGHT_NAME,
+			'right_request'			=>EntityType::RIGHT_NAME,
+			'my_right'				=>EntityType::RIGHT_NAME,
+			'my_right_request'		=>EntityType::RIGHT_NAME,
+			
+			'model'					=>EntityType::VALUE_NAME
 		],
 		
-		$complete_process=['value'=>true, 'task'=>true, 'value_object'=>true, 'valid_content'=>true, 'right'=>true, 'my_right'=>true, 'model'=>true /* FIX: если запрашивается модель из вариантного аспекта, это вызовет дополнительные операции! */],
+		$complete_process=['value'=>true, 'task'=>true, 'value_object'=>true, 'valid_content'=>true, 'right'=>true, 'my_right'=>true, 'model'=>true, 'page'=>true /* FIX: если запрашивается модель из вариантного аспекта, это вызовет дополнительные операции! */],
 		// если в процессе разрешения этих запросов образуется задача, то её нужно сразу завершить. В противном случае нужно вернуть задачу.
 		
-		$storable_responses=['value'=>true, 'value_object'=>true, 'model'=>true, 'my_right'=>true],
+		$storable_responses=['value'=>true, 'value_object'=>true, 'model'=>true, 'my_right'=>true, 'page'=>true],
 		// возврат от этих вызовов можно запоминать при условии, что пул находится в режиме только чтения.
 		
 		$no_verify=['model'=>true, 'value_object'=>true, 'value_object_request'=>true];
@@ -359,11 +398,7 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 	{
 		$this->log('resolving_call', ['name'=>$name, 'args'=>$args]);
 		$analysis=$this->analyze_call($name, $args);
-		if ($analysis instanceof Report_impossible)
-		{
-			if ($name===static::TEMPLATE_NAME) return;
-			return $analysis;
-		}
+		if ($analysis instanceof Report_impossible) return $analysis;
 		extract($analysis);
 		$storable_response_key=null;
 		if ( (array_key_exists($name, static::$storable_responses)) && ($this->entity->pool->read_only()) )
@@ -403,7 +438,6 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		}
 		elseif ( ($analysis['mode']===EntityType::TEMPLATE_NAME) && ($result instanceof Report_task) ) $result=$result->task;
 
-		// STUB - пока не проверяет существование сущности.
 		if ( ($storable_response_key!==null) && (! ($result instanceof Report_tasks)) ) $this->stored_responses[$storable_response_key]=$result;
 		
 		return $result;
@@ -416,8 +450,9 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 			if (!array_key_exists(0, $args)) return $this->sign_report(new Report_impossible('no_code'));
 			$mode=static::$special_calls[$name];
 			$code=$args[0];
+			if ($mode===static::PAGE_NAME) $code.='_page';
 			$aspect_code=static::locate_name($code, $detected_mode);
-			if ($aspect_code===null) return $this->sign_report(new Report_impossible('code_not_found: '.$name));
+			if ($aspect_code===null) return $this->sign_report(new Report_impossible('code_not_found 1: '.$name));
 			$default_mode=$detected_mode;
 		}
 		else
@@ -425,7 +460,7 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 			$code=$name;
 			$aspect_code=static::locate_name($code, $mode);
 			array_unshift($args, $code);
-			if ($aspect_code===false) return $this->sign_report(new Report_impossible('code_not_found: '.$name));
+			if ($aspect_code===false) return $this->sign_report(new Report_impossible('code_not_found 2: '.$name));
 			if ($mode===static::TASK_NAME) $name='task';
 			elseif ($mode===static::TEMPLATE_NAME) $name='template';
 			else $name='value';
@@ -480,6 +515,7 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		if ($track==='right') return $this->RightHost();
 		if ($track==='my_right') return $this->MyRightHost();
 		if ($track==='task') return $this->TaskHost();
+		if ($track==='page') return $this->PageHost();
 		if (array_key_exists($track, static::$pathway_tracks))
 		{
 			$result=$this->resolve_call('request', [$code=static::$pathway_tracks[$track]]);
@@ -509,6 +545,13 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 	{
 		if ($this->TaskHost===null) $this->TaskHost=TaskHost::for_entity($this->entity);
 		return $this->TaskHost;
+	}
+	
+	public $PageHost=null;
+	public function PageHost()
+	{
+		if ($this->PageHost===null) $this->PageHost=PageHost::for_entity($this->entity);
+		return $this->PageHost;
 	}
 	
 	// STUB: в будущем это должно выполняться с учётом аспектов.
@@ -593,6 +636,44 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 	{
 	}
 	
+	public static function spawn_page($type_slug, $parts=[], $route=[])
+	{
+		if (!array_key_exists('module_slug', $route)) $rouet['module_slug']=$this->module_slug;
+		$route['type_slug']=$type_slug;
+		if (empty($parts))
+		{
+			$route['url_formation']=Router::URL_MODULE_TYPE;
+			return static::spawn_default_page($type_slug, $route);
+		}
+		$action=array_shift($parts);
+		if (array_key_exists($action, static::$page_actions)) return static::spawn_action_page($type_slug, $action, $parts, $route);
+		if (preg_match(static::ENTITY_ID_PAGE_EX, $action, $m))
+		{
+			if (!empty($m['hint'])) $route['entity_hint']=$m['hint'];
+			$id=(int)$m['id'];
+			return static::spawn_entity_page($type_slug, $id, $parts, $route);
+		}
+	}
+	
+	public static function spawn_default_page($type_slug, $route=[]) { }
+	
+	public static function spawn_action_page($type_slug, $action, $parts=[], $route=[])
+	{
+		$route['type_action']=$route;
+		$route['url_formation']=Router::URL_MODULE_ACTION;
+		return static::spawn_page_by_data($this->page_actions[$action], $parts, $route, static::STANDARD_PAGE_CLASS);
+	}
+	
+	public static function spawn_entity_page($type_slug, $id, $parts=[], $route=[])
+	{
+		static::init();
+		$entity=EntityPool::default_pool()->entity_from_db_id($id, get_called_class());
+		$route['entity_id']=$id;
+		if (empty($parts)) $action=static::DEFAULT_PAGE_ACTION;
+		else $action=array_shift($parts);
+		return $entity->page($action, $parts, $route);
+	}
+	
 	public function cloned_from_pool($pool)
 	{
 		if (!$this->entity->pool->read_only())
@@ -621,8 +702,15 @@ abstract class EntityType implements Templater, Pathway // на самом де�
 		}
 	}
 	
+	public function detach()
+	{
+		$this->stored_responses=[];
+		$this->entity=null;
+	}
+	
 	public function destroy()
 	{
+		$this->detach();
 	}
 }
 
@@ -721,6 +809,30 @@ class TaskHost extends SubHost
 	{
 		$more_args=array_values($line);
 		return $this->entity->task_request($code, ...$more_args);
+	}
+}
+
+class PageHost extends SubHost
+{
+	public
+		$pages=[];
+	
+	public function template($code, $line=[])
+	{
+		$more_args=array_values($line);
+		$key=$this->generate_key($code, $more_args);
+		if (array_key_exists($key, $pages)) return $this->pages[$key]->report();
+		
+		$result=$this->entity->page_request($code, ...$more_args);
+		$this->pages[$key]=$result;
+		return $result;
+	}
+	
+	public function generate_key($code, $args)
+	{
+		$key=$code;
+		if (!empty($args)) $key.='/'.implode('/', $args);
+		return $key;
 	}
 }
 ?>

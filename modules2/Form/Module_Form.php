@@ -42,6 +42,11 @@ class Module_Form extends Module
 			'Template_field_radios_inline'=>'Template_field_select'
 		],
 		$classex='/^(?<file>FieldSet|Form|Template_field_select|Template_field)[_$]/';
+	
+	public function spawn_default_page($route=[])
+	{
+		return new Page_form();
+	}
 }
 
 ?>

@@ -27,6 +27,12 @@ class Module_File extends Module implements Templater
 			'file_new_image_fragment'	=>'Form_image_new_fragment',
 			'file_edit_image_fragment'	=>'Form_image_edit_fragment'
 		],
+		$type_slugs=
+		[
+			'file'		=>'File',
+			'image'		=>'Image',
+			'image_loc'	=>'ImageLocation'
+		],
 		$classex='/^(?<file>Page_file|Template_file|Form_image|Page_image_location|Value_coord)[_$]/',
 		$class_to_file=['Form_image'=>'File_Form', 'Page_image_location'=>'Page_file', 'Value_coord'=>'File_Data'];
 		

@@ -129,6 +129,11 @@ abstract class ValueSet implements ValueHost, Pathway, Templater
 		return $this->model($code, true);
 	}
 	
+	public function model_code_exists($code)
+	{
+		return !($this->model_soft($code) instanceof Report_impossible); // вызов model() нужен для того, что некоторые фрагменты модели могут создаваться по запросу.
+	}
+	
 	public function set_value($value_code, $content, $source_code=Value::BY_OPERATION, $rewrite=true)
 	{
 		$value=$this->produce_value($value_code);

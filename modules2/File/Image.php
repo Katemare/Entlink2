@@ -146,17 +146,17 @@ class File_image extends Aspect
 	
 	public function new_fragment_url()
 	{
-		return Engine()->url('gallery/new_fragment.php?file='.$this->entity->value('id'));
+		return Router()->url('gallery/new_fragment.php?file='.$this->entity->value('id'));
 	}
 	
 	public function new_point_url()
 	{
-		return Engine()->url('gallery/new_point.php?file='.$this->entity->value('id'));
+		return Router()->url('gallery/new_point.php?file='.$this->entity->value('id'));
 	}
 	
 	public function with_locations_url()
 	{
-		return Engine()->url('gallery/image_locations.php?file='.$this->entity->value('id'));
+		return Router()->url('gallery/image_locations.php?file='.$this->entity->value('id'));
 	}
 	
 	public function imagemap_html_id()

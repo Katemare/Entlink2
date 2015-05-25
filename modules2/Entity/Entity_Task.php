@@ -239,8 +239,8 @@ class Task_save_entity extends Task_for_entity
 		{
 			if ($field_code==='__delete') continue;
 			$more=true;
-			$base=['id'=>$this->db_id(), 'id_group'=>$this->entity->id_group, 'code'=>$field_code, 'index'=>0, 'number'=>null, 'str'=>null];
-			if ((is_array($data)) && (is_numeric(key($data))))
+			$base=['id'=>$this->db_id(), 'id_group'=>$this->entity->id_group, 'code'=>$field_code, 'index'=>null, 'number'=>null, 'str'=>null];
+			if (is_numeric(key($data)))
 			{
 				foreach ($data as $index=>$subdata)
 				{
@@ -576,7 +576,8 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 			$result=$callback (...$this->args);
 			if (! ($result instanceof Report)) $this->make_calls('proxy_resolved', $result);
 			
-			if ($result instanceof Task) return $this->sign_report(new Report_task($result));
+			if ( ($result instanceof Task) && ($this->mode!==EntityType::PAGE_NAME) ) return $this->sign_report(new Report_task($result));
+			if ( ($result instanceof Report_impossible) && ($this->model===EntityType::PAGE_NAME)) return $this->sign_report(new Report_resolution(null));
 			if ( !($result instanceof Report)) return $this->sign_report(new Report_resolution($result)); // единственный случай, когда возвращается не отчёт - это возвращение готового значения.
 			return $result;
 		}
@@ -609,7 +610,7 @@ class Task_for_entity_verify_id extends Task_for_entity
 	
 	public function prepare()
 	{
-		if (!is_null($this->id)) return;
+		if ($this->id!==null) return;
 		
 		$this->id=$this->entity->db_id;
 		$type=$this->entity->type;
@@ -629,7 +630,7 @@ class Task_for_entity_verify_id extends Task_for_entity
 		elseif ($data instanceof Report_tasks) $data->register_dependancies_for($this);
 		else
 		{
-			$this->entity->state=Entity::STATE_VERIFIED_ID;
+			$this->entity->verified();
 			$this->finish();		
 		}
 	}
@@ -677,13 +678,15 @@ class Task_entity_value_request extends Task_for_entity
 abstract class Task_determine_aspect extends Task_for_entity
 {
 	public
-		$aspect_code;
+		$aspect_code,
+		$task_model=[];
 	
-	public static function aspect_for_entity($code, $entity)
+	public static function aspect_for_entity($code, $entity, $model=[])
 	{
 		$task=static::for_entity($entity);
 		$task->aspect_code=$code;
 		$task->entity->aspect_determinators[$code]=$task;
+		$task->task_model=$model;
 		return $task;
 	}
 	
@@ -696,7 +699,7 @@ abstract class Task_determine_aspect extends Task_for_entity
 			if (is_object($previous_aspect)) $previous_aspect=get_class($previous_aspect);
 			if ($previous_aspect!==$this->resolution)
 			{
-				// $this->entity->type->record_aspect_dependancy($this->aspect_code, $this->requested); // STUB!
+				$this->entity->type->record_aspect_dependancy($this->aspect_code, $this->requested); // STUB!
 				$this->entity->aspects[$this->aspect_code]=$this->resolution;
 				$this->modify_model($previous_aspect);
 			}
@@ -732,6 +735,39 @@ abstract class Task_determine_aspect extends Task_for_entity
 			}
 		}
 		*/
+	}
+}
+
+class Task_determine_aspect_by_param extends Task_determine_aspect
+{
+	const
+		ON_OFFICIAL	='Tagged_by_official',
+		ON_USER		='Tagged_by_user',
+		ON_LINK		='Tagged_suggested_link';
+	
+	public $requested=['tag_type']; // требуется только один параметр.
+
+	public function progress()
+	{
+		$param=$this->task_model['param'];
+		$this->requested=[$param];
+		$result=$this->entity->request($param);
+		if ($result instanceof Report_resolution)
+		{
+			$result=$result->resolution;
+			$resolution=null;
+			if (array_key_exists($result, $this->task_model['by_value'])) $resolution=$this->task_model['by_value'][$result];
+			elseif ( (array_key_exists('default_aspect_base', $this->task_model)) && (class_exists($class=$this->task_model['default_aspect_base'].$result)) ) $resolution=$class;
+			elseif (array_key_exists('default_aspect', $this->task_model)) $resolution=$this->task_model['default_aspect'];
+			if ($resolution===null) $this->impossible('bad_aspect_param');
+			else
+			{
+				$this->resolution=$resolution;
+				$this->finish();
+			}
+		}
+		elseif ($result instanceof Report_tasks) $result->register_dependancies_for($this);
+		elseif ($result instanceof Report_impossible) $this->impossible('no_aspect_param');
 	}
 }
 

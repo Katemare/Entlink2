@@ -3,6 +3,7 @@ class User extends EntityType
 {
 	static
 		$init=false,
+		$module_slug='users',
 		$data_model=[],
 		$map=[],
 		$pathway_tracks=[],
@@ -142,7 +143,7 @@ class User_contributor extends Aspect
 				'select_conditions'=>
 				[
 					'id_group'=>'Mission',
-					'moderated'=>[Contribution::MOD_WIP, Contribution::MOD_STABILIZED, Contribution::MOD_REJECTED]
+					'moderated'=>[Post::MOD_WIP, Post::MOD_STABILIZED, Post::MOD_REJECTED]
 				]
 			],
 			'approved_missions'=>
@@ -155,7 +156,7 @@ class User_contributor extends Aspect
 				'select_conditions'=>
 				[
 					'id_group'=>'Mission',
-					'moderated'=>[Contribution::MOD_APPROVED, Contribution::MOD_POLISH, Contribution::MOD_AUTO_APPROVED]
+					'moderated'=>[Post::MOD_APPROVED, Post::MOD_POLISH, Post::MOD_AUTO_APPROVED]
 				]
 			],
 			'can_suggest_missions'=>

@@ -6,6 +6,7 @@ class Module_Entity extends Module
 	
 	public
 		$name='Entity',
+		$slugs=['entity', 'entities'],
 		$quick_classes=
 		[
 			'Entity'						=>'Entity',

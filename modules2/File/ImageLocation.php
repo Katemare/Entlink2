@@ -4,6 +4,7 @@ class ImageLocation extends EntityType
 {
 	static
 		$init=false,
+		$module_slug='file',
 		$data_model=[],
 		$map=[],
 		$pathway_tracks=[],

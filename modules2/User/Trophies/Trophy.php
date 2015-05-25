@@ -3,6 +3,7 @@ class Trophy extends EntityType
 {
 	static
 		$init=false,
+		$module_slug='users',
 		$data_model=[],
 		$map=[],
 		$pathway_tracks=[],
@@ -31,7 +32,7 @@ class Trophy_basic extends Aspect
 			],
 			'date_received'=>
 			[
-				'type'=>'time'
+				'type'=>'timestamp'
 			],
 			'stashed'=>
 			[

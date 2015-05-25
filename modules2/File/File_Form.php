@@ -27,7 +27,7 @@ trait Form_image_delete
 	{
 		if ($this->content_of('delete')!==true) return $this->sign_report(new Report_impossible('delete_not_approved'));
 		if (!$this->entity()->exists())
-			Engine()->redirect(Engine()->url('gallery/gallery.php'));
+			Router()->redirect(Router()->url('gallery/gallery.php'));
 			//return $this->sign_report(new Report_impossible('doesnt_exist')); 
 			
 		$queries=$this->delete_queries();
@@ -56,7 +56,7 @@ trait Form_image_delete
 	
 	public function redirect_after_delete()
 	{
-		Engine()->redirect(Engine()->url('gallery/gallery.php'));
+		Router()->redirect(Router()->url('gallery/gallery.php'));
 	}
 }
 
@@ -189,7 +189,7 @@ abstract class Form_image_point extends Form_entity
 	
 	public function redirect_successful()
 	{
-		Engine()->redirect($this->entity()->value('image_entity')->value('with_locations_url'));
+		Router()->redirect($this->entity()->value('image_entity')->value('with_locations_url'));
 	}
 }
 
@@ -347,7 +347,7 @@ abstract class Form_image_fragment extends Form_image_point
 	
 	public function redirect_successful()
 	{
-		Engine()->redirect($this->produce_value('image_entity')->value('with_locations_url'));
+		Router()->redirect($this->produce_value('image_entity')->value('with_locations_url'));
 	}
 }
 
@@ -478,8 +478,8 @@ class Template_image_point_input extends Template_from_db
 	{
 		if ($this->step===static::STEP_INIT)
 		{
-			$this->page->register_requirement('css', Engine()->module_url('File', 'image_location.css'));
-			$this->page->register_requirement('js', Engine()->module_url('File', 'image_location.js'));
+			$this->page->register_requirement('css', Router()->module_url('File', 'image_location.css'));
+			$this->page->register_requirement('js', Router()->module_url('File', 'image_location.js'));
 		}
 		return parent::run_step();
 	}

@@ -143,7 +143,7 @@ class InputSet extends ValueSet
 			if ($value->has_state(Value::STATE_FILLED)) $args[$code]=$value->content();
 		}
 		if (!empty($more_args)) $args=array_merge($args, $more_args);
-		return Engine()->compose_url_args($args);
+		return Router()->compose_url_args($args);
 	}
 }
 

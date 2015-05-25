@@ -92,7 +92,7 @@ abstract class Form_trophy_blueprint extends Form_entity
 	public
 		$source_setting=InputSet::SOURCE_POST,
 		$id_group='TrophyBlueprint',
-		$target_url_field='admin_view_url';
+		$target_page='admin_view_page';
 	
 	public function rightful()
 	{
@@ -194,7 +194,7 @@ class Form_trophy_blueprint_edit extends Form_trophy_blueprint
 			if ($this->entity()->my_right('delete')!==true) return $this->sign_report(new Report_impossible('no_delete_right'));
 			
 			if (!$this->entity()->exists())
-				Engine()->redirect(Engine()->url('adopts/trophies_blueprints.php'));
+				Router()->redirect(Router()->url('adopts/trophies_blueprints.php'));
 				//return $this->sign_report(new Report_impossible('doesnt_exist')); 
 				
 			$queries=$this->delete_queries();
@@ -203,7 +203,7 @@ class Form_trophy_blueprint_edit extends Form_trophy_blueprint
 				$result=Retriever()->run_query($query);
 				if ($result instanceof Report) return $result;
 			}			
-			Engine()->redirect(Engine()->url('adopts/trophies_blueprints.php'));
+			Router()->redirect(Router()->url('adopts/trophies_blueprints.php'));
 			
 			// до этой строчки не должно дойти.
 			return $this->sign_report(new Report_success());

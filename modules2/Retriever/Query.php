@@ -1,27 +1,5 @@
 <?
 
-/*
-
-SELECT * FROM adopts_players
-
-SELECT `primary`.* FROM adopts_players `primary`, userlist users WHERE `primary`.user=users.id AND users.last_seen>100
-
-public make_query()
-{
-	return ['action'=>'select', 'table'=>'adopts_players'];
-}
-
-public make_query()
-{
-	$this->query=parent::make_query(); // или: $this->query=$this->subrequest->make_query();
-	
-	Query::add_table($this->query, 'userlist', 'user');
-	Query::add_condition($this->query, ['field'=>['users', 'last_seen'], 'op'=>'>', 'value'=>100);
-	return $this->query;
-}
-
-*/
-
 class Query implements ArrayAccess, Multiton_argument
 {
 	public

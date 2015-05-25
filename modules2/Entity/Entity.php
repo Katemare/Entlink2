@@ -124,7 +124,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		$this->auto_type();
 		$this->pool->register_entity($this);
 		$this->dataset->changed_from_db=&$this->changed_from_db;
-		// связать эти переменные нужно позже регистрации сущности у пуле, потому что пул заменяет переменную changed_from_db сущности на свою и связываться нужно именно с ней, новой.
+		// связать эти переменные нужно позже регистрации сущности в пуле, потому что пул заменяет переменную changed_from_db сущности на свою и связываться нужно именно с ней, новой.
 	}
 	
 	// если у сущности известен $id_group, то он совпадает с предположением о типе (с названием класса типа). Если нет, то сущность получает общий тип-заглушку. Последнее может быть у сущностей, которые хранятся не в отдельных, а в общих таблицах, например `entities`.
@@ -140,8 +140,11 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function set_type($type_code)
 	{
 		$new_type=EntityType::for_entity($type_code, $this);
-		$new_type->setup(); // этот метод также выполняет перетипирование сущности, если у той уже был какой-нибудь тип (например, мы не знали тип сущности, а потом узнали, что это покемон.
-		$this->type=$new_type;
+		while (($final_type=$new_type->resolve_type())!==$new_type) // этот метод также выполняет перетипирование сущности, если у той уже был какой-нибудь тип (например, мы не знали тип сущности, а потом узнали, что это покемон.
+		{
+			$new_type=$final_type;
+		}
+		$final_type->setup();
 	}
 	
 	// возвращает объект аспекта по его коду - то есть ключу в массиве $aspects.
@@ -163,7 +166,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function remove_aspect($aspect_code)
 	{
 		if (!array_key_exists($aspect_code, $this->aspects)) return;
-		if (is_obect($this->aspects[$aspect_code])) $this->aspects[$aspect_code]->destroy();
+		if (is_object($this->aspects[$aspect_code])) $this->aspects[$aspect_code]->destroy();
 		unset($this->aspects[$aspect_code]);
 	}
 	
@@ -224,9 +227,15 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		}
 		else
 		{
-			$this->state=static::STATE_VERIFIED_ID;
+			$this->verified();
 			return $this->sign_report(new Report_success());
 		}
+	}
+	
+	public function verified()
+	{
+		$this->state=Entity::STATE_VERIFIED_ID;
+		$this->make_final_calls('verified');
 	}
 	
 	public function verify_expected_id()
@@ -373,7 +382,11 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		return $this->type->follow_track($track);
 	}
 	
-	public function __call($name, $args) // теперь используется только для прямых вызовов типа $pokemon->owned().
+	public function spawn_page($type_slug, $parts=[])
+	{
+	}
+	
+	public function __call($name, $args) // теперь используется только для прямых вызовов типа $pokemon->owned(). FIX! и вообще стоит избавиться.
 	{
 		return $this->type->resolve_call($name, $args);
 	}
