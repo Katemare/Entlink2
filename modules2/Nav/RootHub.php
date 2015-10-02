@@ -83,7 +83,7 @@ class RootHub extends RouterHub
 		$keyword=reset($route);
 		if ($keyword===false) return;
 		
-		// FIX: должно быть сделано иначе, через какой-нибудь модуль кэша.
+		// FIXME: должно быть сделано иначе, через какой-нибудь модуль кэша.
 		$query=
 		[
 			'action'=>'select',

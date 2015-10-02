@@ -9,4 +9,11 @@ interface Templater
 	public function template($code, $line=[]);
 }
 
+interface CodeHost
+{
+	public function get_codefrag($id); // создаёт экземпляр инструкции.
+	
+	public function codefrag($type, $id); // предоставляет данные для создания инструкции.
+}
+
 ?>

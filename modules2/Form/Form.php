@@ -17,7 +17,7 @@ abstract class Form extends FieldSet
 		$data=null,
 		$action='',
 		$pool=null,
-		$operative=true, // совершает ли форма операции или работает в только чтении? FIX: EntityPool пока всё равно создаётся оперативный.
+		$operative=true, // совершает ли форма операции или работает в только чтении? FIXME: EntityPool пока всё равно создаётся оперативный.
 		$main_template_class='Template_form',
 		$template_db_key='form.standard',
 		

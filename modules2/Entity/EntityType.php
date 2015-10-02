@@ -234,7 +234,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 		$this->entity->aspects[$code]=$aspect;
 		return $aspect;
 	}
-	// FIX: Ошибкоопасное место. Допустим, скрипт вызвал этот метод с $now=false и получил в ответ отчёт с задачей. Эта задача уже наполовину выполнена, часть данных уже получена и обработана (справились без запроса в БД). Затем задача добавляется в процесс, который включает изменение этих параметров. Зависимость ещё не проведена, так что получившийся аспект может не соответствовать новым данным. Если же зависимость проведена, то у задачи всё равно пока нет возможности перейти на более раннюю стадию.
+	// FIXME: Ошибкоопасное место. Допустим, скрипт вызвал этот метод с $now=false и получил в ответ отчёт с задачей. Эта задача уже наполовину выполнена, часть данных уже получена и обработана (справились без запроса в БД). Затем задача добавляется в процесс, который включает изменение этих параметров. Зависимость ещё не проведена, так что получившийся аспект может не соответствовать новым данным. Если же зависимость проведена, то у задачи всё равно пока нет возможности перейти на более раннюю стадию.
 	
 	// должна вернуть отчёт: \Report_impossible - нельзя определить аспект; \Report_resolution - содеращий аспект; или задача, результатом работы которой станет аспект. В двух последних случаев получаемый аспект должен быть уже зарегистрирован и связан зависимостями с приведённой сущностью. Обычно используется задача-наследник Task_determine_aspect.
 	public function determine_aspect($aspect_code)
@@ -388,7 +388,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 			'model'					=>EntityType::VALUE_NAME
 		],
 		
-		$complete_process=['value'=>true, 'task'=>true, 'value_object'=>true, 'valid_content'=>true, 'right'=>true, 'my_right'=>true, 'model'=>true, 'page'=>true /* FIX: если запрашивается модель из вариантного аспекта, это вызовет дополнительные операции! */],
+		$complete_process=['value'=>true, 'task'=>true, 'value_object'=>true, 'valid_content'=>true, 'right'=>true, 'my_right'=>true, 'model'=>true, 'page'=>true /* FIXME: если запрашивается модель из вариантного аспекта, это вызовет дополнительные операции! */],
 		// если в процессе разрешения этих запросов образуется задача, то её нужно сразу завершить. В противном случае нужно вернуть задачу.
 		
 		$storable_responses=['value'=>true, 'value_object'=>true, 'model'=>true, 'my_right'=>true, 'page'=>true],
@@ -419,7 +419,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 			if ( ($storable_response_key!==null) && (array_key_exists($storable_response_key, $this->stored_responses)) ) return $this->stored_responses[$storable_response_key];
 		}
 		
-		// для краткости; FIX! для краткости тут можно многое оптимизировать, например, строковые сравнения.
+		// для краткости; FIXME! для краткости тут можно многое оптимизировать, например, строковые сравнения.
 		if
 		(
 			($analysis['mode']===static::VALUE_NAME) &&
@@ -583,7 +583,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 	
 	public static function transform_search_ticket($search, $ticket)
 	{
-		$range_query=$ticket->make_query();
+		$range_query=$ticket->create_query();
 		return static::create_search_ticket($search, $range_query);
 	}
 	
@@ -779,7 +779,7 @@ class RightHost extends SubHost
 		$user=$this->entity->pool->entity_from_provider(['user_by_login', $line['user']], 'User');
 		$more_args=$line;
 		unset($more_args['user']);
-		// FIX: следующий метод принимает аргументы по порядку, а задаются они по ключу! нужно принимать аргументы по ключу.
+		// FIXME: следующий метод принимает аргументы по порядку, а задаются они по ключу! нужно принимать аргументы по ключу.
 		return $this->entity->type->right_request($user, $code, ...$more_args);
 	}
 }

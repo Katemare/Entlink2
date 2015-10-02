@@ -67,7 +67,7 @@ class ValueType_timestamp extends ValueType_unsigned_int implements Value_has_re
 	
 	public function compose_from_regs($data)
 	{
-		// FIX - заменить на ?? в PHP7
+		// FIXME - заменить на ?? в PHP7
 		$args=
 		[
 			empty($data['hour']) ? 0 : $data['hour'],
@@ -281,7 +281,7 @@ class Value_timetable extends Value_serialized_array
 		$day=date('j', $time);
 		foreach ($timetable['dates'] as $date)
 		{
-			preg_match(static::DATEEX, $date, $m); // FIX: это в общем-то затратная операция, однако хранение в виде строки выбрано для лучшего вида сериализованного массива, хотя бы для визуального контроля админа. возможно, это можно будет упростить и ускорить при налчии абсолютно надёжной и удобной CMS.
+			preg_match(static::DATEEX, $date, $m); // FIXME: это в общем-то затратная операция, однако хранение в виде строки выбрано для лучшего вида сериализованного массива, хотя бы для визуального контроля админа. возможно, это можно будет упростить и ускорить при налчии абсолютно надёжной и удобной CMS.
 			if ( (empty($m['end'])) && ($month==$m['month1']) && ($day==$m['day1']) ) $good_date=true;
 			elseif (empty($m['end'])) continue;
 			elseif ( ($month>$m['month1']) && ($month<$m['month2']) ) $good_date=true;

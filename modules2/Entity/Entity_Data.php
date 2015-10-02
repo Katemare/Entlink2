@@ -21,7 +21,7 @@ interface Value_links_entity extends \Pokeliga\Data\Value_has_registers // ре�
 {
 	public function get_entity();
 	// возвращает либо сущность; либо \Report_task с задачей, разрешением которой станет сущность; либо \Report_impossible. возвращённая сущность не обязательно является подтверждённой. Если возвращается отчёт с задачей, то после выполнения задачи следующий запрос к get_entity() должен вернуть либо сущность, либо невозможность.
-	// FIX: хорошо бы во всех случаях возвращать Entity, пусть и в состоянии EXPECTED_ID.
+	// FIXME: хорошо бы во всех случаях возвращать Entity, пусть и в состоянии EXPECTED_ID.
 }
 
 // используется при клонировании сущности в другой пул.
@@ -405,7 +405,7 @@ class EntitySet extends \Pokeliga\Data\MonoSet
 		foreach ($this->values as $element)
 		{
 			if ($entity===$element) return true;
-			if ( ($entity->id_group===$element->id_group) && ($entity->db_id==$element->db_id) ) return true; // FIX: не учитывает пулы.
+			if ( ($entity->id_group===$element->id_group) && ($entity->db_id==$element->db_id) ) return true; // FIXME: не учитывает пулы.
 		}
 		return false;
 	}
@@ -603,7 +603,7 @@ class Validator_subentity_value_is extends Validator_subentity_exists
 }
 
 // проверяет, что сущность, заключённая в данном значении, имеет отсылку в сущности-хозяйке данного значения в определённом поле. 
-// FIX! кажется, не работает, но пока не используется.
+// FIXME! кажется, не работает, но пока не используется.
 class Validator_subentity_backlinks extends Validator_subentity_value_is
 {
 	const
@@ -672,7 +672,7 @@ class Validator_id_in_range extends \Pokeliga\Data\Validator
 		if ($this->subvalidator!==null)
 		{
 			if ($this->subvalidator->successful()) $this->finish_with_resolution($this->subvalidator->resolution);
-			elseif ($this->subvalidator->failed()) $this->impossible($this->subvalidator->errors);
+			elseif ($this->subvalidator->failed()) $this->impossible($this->subvalidator);
 			else die('SUBVALIDATOR ERROR');
 			return;
 		}

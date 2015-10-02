@@ -93,7 +93,7 @@ class CodeFragment_expression extends CodeFragment
 	
 	public function completed_dependancy($task, $identifier=null)
 	{
-		if ( ($task->failed()) && ($this->step===static::STEP_PRECALC) ) // FIX: есть опасность при использовании внешних зависимостей.
+		if ( ($task->failed()) && ($this->step===static::STEP_PRECALC) ) // FIXME: есть опасность при использовании внешних зависимостей.
 		{
 			$this->impossible('bad_precalc');
 			return;

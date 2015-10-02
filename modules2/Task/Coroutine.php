@@ -4,33 +4,33 @@ namespace Pokeliga\Task;
 
 trait Task_coroutine
 {
-	public
+	private
 		$coroutine_need,
 		$coroutine_generator,
 		$coroutine_init=false;
 	
-	public function coroutine_generator()
+	private function coroutine_generator()
 	{
 		if ($this->coroutine_generator===null) $this->coroutine_generator=$this->get_coroutine_generator();
 		return $this->coroutine_generator;
 	}
 	
-	public function get_coroutine_generator()
+	protected function get_coroutine_generator()
 	{
 		$generator=$this->coroutine();
 		if (!($generator instanceof \Generator)) throw new \Exception('bad generator');
 		return $generator;
 	}
 	
-	public abstract function coroutine();
+	protected abstract function coroutine();
 	
 	public function progress()
 	{
 		if ($this->coroutine_need!==null)
 		{
-			if ($this->coroutine_need->mandatory and $this->coroutine_need->failed())
+			if ($this->coroutine_need->to_abort())
 			{
-				$this->impossible($this->coroutine_need);
+				$this->impossible($this->coroutine_need->abort_reason());
 				return;
 			}
 			else $this->coroutine_need=null;
@@ -49,11 +49,11 @@ trait Task_coroutine
 		$this->process_generator_state();
 	}
 	
-	public function process_generator_state($effort=false)
+	protected function process_generator_state($effort=false)
 	{
 		$state=$this->coroutine_generator->current();
+		if ($state instanceof \Generator) $state=new Need_subroutine($state);
 		\process_mediator($state);
-		if ($state instanceof \Pokeliga\Entlink\GenMediator) $state=new Need_one($state);
 		if ($state instanceof Need) $this->register_need($state, $effort);
 		elseif ($state instanceof \Report_delay) $this->register_dependancies($state);
 		elseif ($state instanceof \Report_final) $this->finish($state);
@@ -61,7 +61,7 @@ trait Task_coroutine
 		else $this->finish_with_resolution($state);
 	}
 	
-	public function register_need($need, $effort=false)
+	protected function register_need($need, $effort=false)
 	{
 		if ($effort) $need->max_requestless_progress();
 		else $need->max_standalone_progress();
@@ -102,7 +102,7 @@ class Coroutine extends Task
 		$this->coroutine_generator=$generator;
 	}
 	
-	public function init()
+	private function init()
 	{
 		$this->coroutine_init=true;
 		if (!$this->coroutine_generator()->valid()) { xdebug_print_function_stack(); return $this->report_impossible('empty_generator'); }
@@ -111,7 +111,7 @@ class Coroutine extends Task
 		return $this->requestless_resolution_or_promise();
 	}
 	
-	public function coroutine() { die('COROUTINE ALREADY PROVIDED'); }
+	protected function coroutine() { die('COROUTINE ALREADY PROVIDED'); }
 }
 
 // Генератор представляет собой не завершённый вызов метода или функции. такие методы и функции предполагают возможность паузы в выполнении (содержат ключевое слово yield). возможно, вызов можно завершить сразу, даже не встретив yield! или встретить yield, возвращающую Need, но эта нужда всего лишь номинальна и тут же выполняется без дополнительных усилий. но иногда для преодоления yield'а нужны дополнительные действия и даже запросы.

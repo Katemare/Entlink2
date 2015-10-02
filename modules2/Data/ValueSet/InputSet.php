@@ -66,7 +66,7 @@ class InputSet extends ValueSet
 		if (array_key_exists('name', $model)) $name=$model['name'];
 		else $name=$code;
 		
-		if ($value instanceof Value_upload) $source=['_FILE']; // FIX: больше не работает
+		if ($value instanceof Value_upload) $source=['_FILE']; // FIXME: больше не работает
 		else $source=$this->sources($source);
 	
 		$got_it=false;

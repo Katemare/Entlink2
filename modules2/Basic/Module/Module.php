@@ -40,7 +40,7 @@ class Module
 	public final static function dir_from_config($config)
 	{
 		if (is_string($config)) return $config;
-		if (array_key_exists('dir', $config)) $dir=$config['dir']; // FIX: заменить на ?? с PHP7
+		if (array_key_exists('dir', $config)) $dir=$config['dir']; // FIXME: заменить на ?? с PHP7
 		else $dir=$config['name'];
 		return $dir;
 	}
@@ -74,9 +74,9 @@ class Module
 	
 	public final static function get_module_header_class($config)
 	{
-		if (array_key_exists('vendor', $config)) $vendor=$config['vendor']; // FIX: заменить на ?? с PHP7
+		if (array_key_exists('vendor', $config)) $vendor=$config['vendor']; // FIXME: заменить на ?? с PHP7
 		else $vendor=static::DEFAULT_VENDOR;
-		if ($config['name']==='Basic') $mid='Entlink'; else $mid=$config['name']; // FIX: нужно позволить другие пространства имён?
+		if ($config['name']==='Basic') $mid='Entlink'; else $mid=$config['name']; // FIXME: нужно позволить другие пространства имён?
 		return '\\'.$vendor.'\\'.$mid.'\\Module_'.$config['name'];
 	}
 	
@@ -107,6 +107,7 @@ class Module
 	protected function register_at_engine()
 	{
 		$this->register_namespace();
+		$this->register_global_classes();
 	}
 	
 	// отправляет движку сведения для быстрого алгоритма подключения классов.
@@ -115,27 +116,16 @@ class Module
 		$this->engine->register_namespace($this->ns, $this);
 	}
 	
+	protected function register_global_classes()
+	{
+		if (empty($this->global_classes)) return;
+		$this->engine->register_global_class($this->global_classes, $this);
+	}
+	
 	public function get_class_shorthands($class)
 	{
 		if (!array_key_exists($class, $this->class_shorthands)) return;
-		
-		$processed=[];
-		foreach ($this->class_shorthands[$class] as $shorthand_keyword=>$class_name)
-		{
-			if (is_numeric($shorthand_keyword))
-			{
-				if (empty($class_base))
-				{
-					preg_match('/[a-z\d_]+$/i', $class, $m);
-					$class_base=$m[0];
-				}
-				$shorthand_keyword=$class_name;
-				$class_name=$class_base.'_'.$class_name;
-			}
-			$class_name=prepend_namespace($class_name, $this->ns, false);
-			$processed[$shorthand_keyword]=$class_name;
-		}
-		return $processed;
+		return $this->class_shorthands[$class];
 	}
 	
 	protected function create_front($engine, $slug, $config)

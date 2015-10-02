@@ -258,7 +258,7 @@ class ValueType_linkset extends \Pokeliga\Data\ValueType implements \Pokeliga\Da
 	}
 }
 
-// FIX! требуется обновление.
+// FIXME! требуется обновление.
 class ValueType_linkset_ordered extends ValueType_linkset
 {
 	public function from_db($content)
@@ -327,7 +327,7 @@ class Task_linkset_make_options extends \Pokeliga\Data\Task_for_value
 			foreach ($linkset->values as $linked)
 			{
 				if (!($linked instanceof Entity)) return $this->sign_report(new \Report_impossible('bad_linked'));
-				$id=$linked->db_id; // FIX! пока не позволяет в одном списке сущностей из разных групп айди, как, впрочем, и Линксет пока что.
+				$id=$linked->db_id; // FIXME! пока не позволяет в одном списке сущностей из разных групп айди, как, впрочем, и Линксет пока что.
 				
 				if ( (!empty($this->line)) && (array_key_exists('option_template', $this->line)) ) $code=$this->line['option_template'];
 				else $code=static::OPTION_TEMPLATE_CODE;

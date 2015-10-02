@@ -49,7 +49,7 @@ class ValueSet implements ValueHost, Pathway, \Pokeliga\Template\Templater
 	{
 	}
 
-	// FIX! не гарантирует, что модель полная, если поля модели заполняются лениво.
+	// FIXME! не гарантирует, что модель полная, если поля модели заполняются лениво.
 	public function get_complete_model()
 	{
 		return $this->model;

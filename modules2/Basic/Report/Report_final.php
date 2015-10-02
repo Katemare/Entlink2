@@ -1,17 +1,11 @@
 <?
 
-namespace Pokeliga\Entlink
-{
-	interface ErrorsContainer
-	{
-		public function get_errors();
-	}
-}
-
 namespace
 {
-	// обозначают, что отчёт содержит итоговое, а не промежуточное состояние.
-	// следует заметить, что эти отчёты не обязательно происходят от выполненных задач! они могут быть также результатом 
+	/**
+	* Такие отчёты обозначают итоговое, а не промежуточное состояние, не предполагающее дальнейшее выполнение.
+	* Следует заметить, что эти отчёты не обязательно происходят от выполненных задач! они могут быть также результатом вызова метода.
+	*/
 	abstract class Report_final extends Report implements \Pokeliga\Entlink\FinalPromise
 	{
 		public function completed()		{ return true; }
@@ -28,15 +22,25 @@ namespace
 		}
 	}
 
-	class Report_impossible extends Report_final implements \Pokeliga\Entlink\ErrorsContainer
+	/**
+	* Говорит о невозможности провести операцию или получить значение.
+	*/
+	class Report_impossible extends Report_final
 	{
-		public
+		/**
+		* @var array $errors Список ошибок (пока строковых).
+		*/
+		private
 			$errors=[];
-			
+		
+		/**
+		@param null|array|string|\Pokeliga\Entlink\ErrorsContainer $errors Список или источник ошибок.
+		*/
 		public function __construct($errors=null, $by=null)
 		{
 			if (empty($errors)) return;
 			if (is_array($errors)) $this->errors=$errors;
+			elseif ($errors instanceof \Pokeliga\Entlink\ErrorsContainer) $this->errors=$errors->get_errors();
 			else $this->errors=[$errors];
 			parent::__construct($by);
 		}
@@ -53,17 +57,29 @@ namespace
 
 	}
 
-	// успешное завершение, не предполагающее получение значения.
+	/**
+	* Успешное завершение, не предполагающее получение значения.
+	*/
 	class Report_success extends Report_final
 	{
 		public function successful()	{ return true; }
 		public function resolution()	{ return true; }
+		public function get_errors()	{ return; }
 	}
 
+	/**
+	* Успешное завершение, предполагающее итоговое значение.
+	*/
 	class Report_resolution extends Report_success
 	{
-		public $resolution;
+		/**
+		* @var mixed $resolution Собственно итоговое значение - что угодно кроме медиатора.
+		*/
+		private $resolution;
 		
+		/**
+		* @param mixed $resolution Собственно итоговое значение - что угодно кроме медиатора.
+		*/
 		public function __construct($resolution=null, $by=null)
 		{
 			parent::__construct($by);

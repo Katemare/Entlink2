@@ -29,7 +29,7 @@ class Select_from_ids extends Select implements Select_provides_ticket
 		$this->resolve_from_ids($ids);
 	}
 	
-	public function create_request() // для совместимости с Select_limited и прочими.
+	public function create_request_ticket() // для совместимости с Select_limited и прочими.
 	{
 		$id_group=$this->id_group();
 		$range_ticket=new RequestTicket('Request_by_id', [$id_group::$default_table], [$this->ids()]);
@@ -116,12 +116,12 @@ class Select_from_ids extends Select implements Select_provides_ticket
 	
 	public function extract_stats($stats)
 	{
-		return new RequestTicket('Request_group_functions', [$this->create_request()], [$stats]);
+		return new RequestTicket('Request_group_functions', [$this->create_request_ticket()], [$stats]);
 	}
 	
 	public function create_standard_request()
 	{
-		return $this->create_request();
+		return $this->create_request_ticket();
 	}
 	public function produce_range_query()
 	{
@@ -171,7 +171,7 @@ class Select_special_from_complex extends Select_from_ids
 	public function progress()
 	{
 		if ($this->complex->successful()) $this->finish_with_resolution($this->complex->resolution);
-		elseif ($this->complex->failed()) $this->impossible($this->complex->errors);
+		elseif ($this->complex->failed()) $this->impossible($this->complex);
 		else $this->register_dependancy($this->complex);
 	}
 	

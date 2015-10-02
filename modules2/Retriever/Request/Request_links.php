@@ -5,7 +5,7 @@ namespace Pokeliga\Retriever;
 // сама команда class_alias() находится в Request.php, чтобы не включать этот файл ради одной её.
 
 // запрос к таблицам вроде adopts_logs, где кроме соответствия двух сущностей может быть указан тип их отношений.
-// FIX! непосредственно этот класс сейчас не используется - он только наслудеутеся классом Request_generic_links. значительная часть функционала в последнем должна перекочевать сюда.
+// FIXME! непосредственно этот класс сейчас не используется - он только наслудеутеся классом Request_generic_links. значительная часть функционала в последнем должна перекочевать сюда.
 class Request_links_with_relations extends Request_links
 {
 	use Request_get_data_two_args;
@@ -41,9 +41,9 @@ class Request_links_with_relations extends Request_links
 		return true;
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		if ($this->relations!=='all') $query['where'][$this->relation_field]=$this->relations;
 		return $query;
 	}
@@ -185,9 +185,9 @@ class Request_generic_links extends Request_links_with_relations
 		$type2_field=null,
 		$by_relation=[];
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		$query['where'][$this->type_field]=strtolower($this->entity_type);
 		if ($this->entity2_type!==null) $query['where'][$this->type2_field]=strtolower($this->entity2_type);
 		// COMP! в будущем strtolower не понадобится.

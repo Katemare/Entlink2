@@ -336,7 +336,7 @@ class Template_field_select extends Template_field implements Template_field_var
 	}
 }
 
-// FIX: зачем оно наследует Temlate_field, если ничего не вводит?
+// FIXME: зачем оно наследует Temlate_field, если ничего не вводит?
 class Template_field_option extends Template_field
 {
 	public
@@ -365,7 +365,7 @@ class Template_field_option extends Template_field
 ####################################################
 */
 
-// FIX: зачем оно наследует Temlate_field, если ничего не вводит?
+// FIXME: зачем оно наследует Temlate_field, если ничего не вводит?
 class Template_field_select_common_options extends Template_field
 {
 	public

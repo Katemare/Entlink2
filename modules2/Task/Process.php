@@ -12,6 +12,9 @@ abstract class Process extends Task
 	const
 		MAX_ACTIVE_PASSES=10000;
 	
+	static
+		$passes_count=0;
+	
 	public
 		$requests=[],
 		$active_tasks=[],
@@ -162,8 +165,11 @@ abstract class Process extends Task
 	public function max_standalone_progress()
 	{
 		$over_limit=false;
+		global $debug;
 		foreach ($this->active_tasks(static::MAX_ACTIVE_PASSES) as $key=>$task)
 		{
+			if ($debug) static::$passes_count++; // DEBUG!
+			
 			if ($task===false)
 			{
 				$over_limit=true;
@@ -256,9 +262,11 @@ abstract class Process extends Task
 	public function make_requests()
 	{
 		$this->log('requests');
+		global $debug;
 		foreach ($this->requests as $request)
 		{
 			if (!$request->is_needed()) continue; // удалять из массива не требуется, они и так удалятся в рамках made_requests()
+			if ($debug) static::$passes_count++; // DEBUG
 			$this->log('request', ['request'=>$request]);
 			$request->max_standalone_progress();
 			if ($this->completed()) return;			

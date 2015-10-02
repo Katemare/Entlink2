@@ -23,7 +23,7 @@ _reg - к RegisterSet
 _arr - к ArraySet
 остальное - к содержимому массива, не к регистрам. у регистров массива всё равно нет подзначений и всяких подзапросов.
 
-FIX: пока никак не регламентируются ключи открытых массивов.
+FIXME: пока никак не регламентируются ключи открытых массивов.
 */
 
 class ValueType_array extends ValueType implements Value_provides_options, Pathway, Value_has_registers
@@ -247,7 +247,7 @@ class ArraySet extends RegisterSet
 			return;
 		}
 		
-		$master_content=$master_content->resolution;
+		$master_content=$master_content->resolution();
 		if (array_key_exists($value->code, $master_content)) $value->set($master_content[$value->code], $this->master->last_source);
 		else $value->set_failed();
 	}

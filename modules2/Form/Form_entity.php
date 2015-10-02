@@ -6,7 +6,7 @@ interface FieldSet_provides_entity
 	public function entity();
 }
 
-// FIX: возможно, следует сделать это трейтом или же форму трейтом, потому что потенциально редактировать сущность может как целая форма, так и отдельные наборы полей.
+// FIXME: возможно, следует сделать это трейтом или же форму трейтом, потому что потенциально редактировать сущность может как целая форма, так и отдельные наборы полей.
 trait FieldSet_about_entity
 {
 	public
@@ -84,7 +84,7 @@ trait Form_new_entity
 {
 	public function create_entity()
 	{
-		// FIX: следует предусмотреть загрузку значений по умолчанию из новой сущности.
+		// FIXME: следует предусмотреть загрузку значений по умолчанию из новой сущности.
 		return $this->pool()->new_entity($this->id_group);
 	}
 }
@@ -100,7 +100,7 @@ trait Form_edit_entity
 	
 	public abstract function entity_db_id();
 	
-	// FIX! запросы не ставятся в очередь, так что при показе нескольких форм будут выполняться не оптимально.
+	// FIXME! запросы не ставятся в очередь, так что при показе нескольких форм будут выполняться не оптимально.
 	public function fill_defaults($codes=null, $rewrite=true)
 	{
 		$class=static::DEFAULTS_FROM_ENTITY_CLASS;
@@ -268,7 +268,7 @@ class Template_entity_form extends Template_from_db
 	}
 }
 
-// FIX: возможно, эту задачу лучше посвятить исключительно сохранению сущностей, не касаясь форм? ведь форма только подготавливает значение, это может сделать и собственно форма, а шаги со сравнением можно включить в Task_save_entity.
+// FIXME: возможно, эту задачу лучше посвятить исключительно сохранению сущностей, не касаясь форм? ведь форма только подготавливает значение, это может сделать и собственно форма, а шаги со сравнением можно включить в Task_save_entity.
 class Task_save_entity_from_fieldset extends Task_for_fieldset
 {
 	use Task_steps;
@@ -309,7 +309,7 @@ class Task_save_entity_from_fieldset extends Task_for_fieldset
 			foreach ($this->entity->dataset->values as $value)
 			{
 				if (!$value->save_changes) continue;
-				if ( ($value->in_value_model('keeper')) && ($value->value_model_now('keeper')===false)) continue; // FIX: исключает не все случаи, когда значение не сохраняется. и вообще должно делаться в едином месте.
+				if ( ($value->in_value_model('keeper')) && ($value->value_model_now('keeper')===false)) continue; // FIXME: исключает не все случаи, когда значение не сохраняется. и вообще должно делаться в едином месте.
 				$this->changed_values[]=$value->code;
 				
 				$result=$this->test_entity->request($value->code);
@@ -327,7 +327,7 @@ class Task_save_entity_from_fieldset extends Task_for_fieldset
 				if ($test_value instanceof \Report_impossible) return $test_value;
 				$matched_value=$this->entity->value($code);
 				if ($test_value===$matched_value) $this->entity->dataset->produce_value($code)->save_changes=false;
-				// FIX: можно было бы использовать value_object, но такой запрос нуждается в оптимизации, и на данном этапе мы точно знаем, что значения есть.
+				// FIXME: можно было бы использовать value_object, но такой запрос нуждается в оптимизации, и на данном этапе мы точно знаем, что значения есть.
 			}
 			return $this->advance_step();
 		}

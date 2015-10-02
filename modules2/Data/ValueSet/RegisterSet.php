@@ -201,7 +201,7 @@ class RegisterSet extends ValueSet
 		}
 		elseif ($master_content instanceof \Report_tasks)
 		{
-			// FIX: это единственное применение Filler_delay. если удастся обойтись без него, класс следует удалить.
+			// FIXME: это единственное применение Filler_delay. если удастся обойтись без него, класс следует удалить.
 			$filler=Filler_delay::with_call( new \Pokeliga\Entlink\Call([$this, 'fill_value'], $value), $master_content->force_again());
 			$filler->master_fill();
 			return;

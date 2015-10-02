@@ -146,7 +146,7 @@ class QueryComposer_mysql extends QueryComposer
 		return $result;
 	}	
 	
-	// FIX: требуется возможность изменять поля и в дополнительных таблицах.
+	// FIXME: требуется возможность изменять поля и в дополнительных таблицах.
 	public function compose_update()
 	{
 		$fields=$this->compose_set_fields($this->query['set']);
@@ -370,7 +370,7 @@ class QueryComposer_mysql extends QueryComposer
 					$values[]=$this->field_name($field_data);
 				}
 			}
-			if (array_key_exists('value_expression', $data)) // FIX: не поддерживает выражений, включающих подзапросы. ну, как не поддерживает: есть риск ошибок из-за совпадения названий полей.
+			if (array_key_exists('value_expression', $data)) // FIXME: не поддерживает выражений, включающих подзапросы. ну, как не поддерживает: есть риск ошибок из-за совпадения названий полей.
 			{
 				if (!is_array($data['value_expression'])) $data['value_expression']=[$data['value_expression']];
 				foreach ($data['value_expression'] as $expr)
@@ -449,14 +449,12 @@ class QueryComposer_mysql extends QueryComposer
 			if (array_key_exists(1, $data))
 			{
 				if ($data[0][0]==='<') return "`".substr($data[0], 1)."`.".$this->wrap_title($data[1]);
-				// FIX: вероятно, обращение к старшему запросу в подзапросе должно быть выполнено иначе.
+				// FIXME: вероятно, обращение к старшему запросу в подзапросе должно быть выполнено иначе.
 				return "`".$this->alias_prefix.$data[0]."`.".$this->wrap_title($data[1]);
 			}
 			return $this->field_name($data[0]);
 		}
-		vdump($data);
-		vdump($this);
-		die('BAD FIELD NAME');
+		throw new \Exception('bad field name');
 	}
 	
 	public function wrap_title($title)

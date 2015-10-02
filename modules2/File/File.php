@@ -148,9 +148,9 @@ class Request_dir_files_by_name extends Request_by_field
 		$this->path=$path;
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		$query['where']['path']=$this->path;
 		return $query;
 	}
@@ -167,7 +167,7 @@ class Provide_file_by_path extends Provide_by_single_request
 		$this->name=next($args);
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return Request_dir_files_by_name::instance($this->path);
 	}

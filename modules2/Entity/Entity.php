@@ -14,9 +14,9 @@ namespace Pokeliga\Entity;
 load_debug_concern(__DIR__, 'Entity');
 
 class Entity
-	implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway, \Pokeliga\Template\Template_context, \Pokeliga\Entlink\Multiton_argument
+	implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway, \Pokeliga\Data\Context, \Pokeliga\Entlink\Multiton_argument
 {
-	use \Pokeliga\Entlink\Object_id, \Pokeliga\Entlink\Caller_backreference, Logger_Entity, \Pokeliga\Template\Context_self;
+	use \Pokeliga\Entlink\Object_id, \Pokeliga\Entlink\Caller_backreference, Logger_Entity, \Pokeliga\Data\Context_self;
 	
 	const
 		LINK_TEMPLATE='link',
@@ -80,7 +80,7 @@ class Entity
 	// сущность, у которой известен айди в БД, хотя его существование ещё следует проверить (и, возможно, уточнить тип).
 	public static function from_db_id($db_id, $id_group=null, $pool=null)
 	{
-		if ($db_id==0) return; // FIX: должно возращать \Report_impossible, но нужно настроить всюду, чтобы понимало это.
+		if ($db_id==0) return; // FIXME: должно возращать \Report_impossible, но нужно настроить всюду, чтобы понимало это.
 		
 		$entity=static::for_pool($id_group, $pool);
 		$entity->state=static::STATE_PROVIDED_ID;
@@ -90,7 +90,7 @@ class Entity
 		return $entity;
 	}
 	
-	// сущность, которая предположительно есть в БД, но айди которой неизвестен и будет заполнен автоматически другим процессом. Эта сущность не может подтвердить сама себя! FIX: когда будет понятно, в каких случаях нужны такие сущности, этот вариант будет уточнён.
+	// сущность, которая предположительно есть в БД, но айди которой неизвестен и будет заполнен автоматически другим процессом. Эта сущность не может подтвердить сама себя! FIXME: когда будет понятно, в каких случаях нужны такие сущности, этот вариант будет уточнён.
 	public static function create_expected($id_group=null, $pool=null)
 	{
 		$entity=static::for_pool($id_group, $pool);
@@ -214,7 +214,7 @@ class Entity
 	
 	public function is_editable()
 	{
-		return !$this->pool->read_only() && $this->state!==Entity::STATE_FAILED; // FIX: в будущем будет также учитывать, есть ли у сущности известный тип. сейчас тип всегда известный.
+		return !$this->pool->read_only() && $this->state!==Entity::STATE_FAILED; // FIXME: в будущем будет также учитывать, есть ли у сущности известный тип. сейчас тип всегда известный.
 	}
 	public function is_saveable()
 	{
@@ -267,7 +267,7 @@ class Entity
 	
 	public function receive_db_id($id)
 	{
-		// FIX: здесь требуются действия в случае, если сущность с таким айди уже есть. скорее всего, замена содержимого.
+		// FIXME: здесь требуются действия в случае, если сущность с таким айди уже есть. скорее всего, замена содержимого.
 		if (!$this->expects_db_id()) die ('DOUBLE RECEIVE ID');
 		$id=(int)$id;
 		$this->db_id=$id;
@@ -328,7 +328,7 @@ class Entity
 		return $this->state===static::STATE_FAILED;
 	}
 	
-	// FIX! похоже, эти методы не используются.
+	// FIXME! похоже, эти методы не используются.
 	public function validate_request()
 	{
 		return $this->type->validate_request();
@@ -404,7 +404,7 @@ class Entity
 	{
 	}
 	
-	public function __call($name, $args) // теперь используется только для прямых вызовов типа $pokemon->owned(). FIX! и вообще стоит избавиться.
+	public function __call($name, $args) // теперь используется только для прямых вызовов типа $pokemon->owned(). FIXME! и вообще стоит избавиться.
 	{
 		return $this->type->resolve_call($name, $args);
 	}

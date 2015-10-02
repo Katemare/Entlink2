@@ -2,9 +2,9 @@
 
 namespace Pokeliga\Data;
 
-/*
-
-вся структура данных, сущностей и прочего представляет собой граф, по которому можно перемещаться запросами follow_track(). Трек (след) должен представлять собой строку и, возможно, массив дополнительных параметров. Путь (стек следов) представляет собой массив следов, а в текстовом виде - следы, разделённые точкой, например:
+/**
+* Интерфейс объекта, состоящего в структурном графе.
+* Вся структура данных, сущностей и прочего представляет собой граф, по которому можно перемещаться запросами follow_track(). Трек (след) должен представлять собой строку и, возможно, массив дополнительных параметров. Путь (стек следов) представляет собой массив следов, а в текстовом виде - следы, разделённые точкой, например:
 
 owner.nickname (из шаблона с контекстом-покемоном, показывает имя тренера)
 page.input.pokemon (из шаблона, показывающегося в странице, показывает ссылку на покемона из ввода)
@@ -14,9 +14,9 @@ adopts.pokemon[species.title=Бульбазавр; random 5].portrait (пока�
 users.user[birthday.month:=data.today.month; birthday.day:=data.today.day; order by nickname].portrait (показывает портреты пользователей, у которых сегодня ДР)
 adopts.pokemon[no_misison_cooldown; mission=1; player:=adopts.current_player; order by level desc].portraits (показывает портреты покемонов данного тренера, не имеющих кулдауна в данной миссии)
 
-не всё это уже реализовано! но лучше всего, чтобы тексты шаблонов могли принимать и интерпретировать такой ввод.
+Не всё это уже реализовано! Но лучше всего, чтобы тексты шаблонов могли принимать и интерпретировать такой ввод.
 
-путь делится на три части: начало (startpoint), промежуточные точки (waypoints) и конец (endpoint).
+Путь делится на три части: начало (startpoint), промежуточные точки (waypoints) и конец (endpoint).
 
 Начало определяет точку отсчёта и может быть "текущим объектом" (например, шаблон); "контекстом" (например, объект-контекст этого шаблона); или одним из "якорей" (например, старшая страница шаблона или подключённые модули движка).
 Промежуточные точки достигаются через результат работы метода follow_track() на последовательных объектах.
@@ -28,9 +28,12 @@ adopts.pokemon[no_misison_cooldown; mission=1; player:=adopts.current_player; or
 
 interface Pathway
 {
-	// этот метод принимает обращение, взятое из стёка, и пытается получить следующий шаг на пути обращения.
-	// итого результатом работы может быть следующие ответы: объект; отчёт \Report_promise; отчёт \Report_dependant; \Report_impossible; или null (ленивый вариант \Report_impossible).
-	
+	/**
+	* Этот метод принимает обращение, взятое из стёка, и пытается получить следующий шаг на пути обращения.
+	* @param string $track "След", по которому нужно найти следующую локацию.
+	* @param array $line Вспомогательные данные, поясняющие след.
+	* @return \Pokeliga\Entlink\FinalPromise|Object|null Если обещание, то результат является следующей локацией; невозможность получить незультат - невозможностью двинуться дальше. То же значение имеет null. Если возвращается другой объект, то он должен быть следующей локацией.
+	*/
 	public function follow_track($track, $line=[]);
 }
 
@@ -38,14 +41,14 @@ abstract class Task_resolve_track extends \Pokeliga\Task\Task implements \Pokeli
 {
 	use \Pokeliga\Task\Task_coroutine;
 	
-	public
-		$original_track,
+	const
+		ANCHOR_ROOT='*';
+	
+	protected
 		$track,
 		$last_iteration,
 		$location,
-		$iteration=0,
-		
-		$complex_checked=false;
+		$iteration=0;
 		
 	public function __construct($track, $origin)
 	{
@@ -55,93 +58,141 @@ abstract class Task_resolve_track extends \Pokeliga\Task\Task implements \Pokeli
 		parent::__construct();
 	}
 	
-	public function compacter_host()
+	protected function compacter_host()
 	{
 		return $this->location;
 	}
 	
-	public function coroutine()
+	protected function coroutine()
 	{
 		while (true)
 		{
 			$track=&$this->track[$this->iteration];
-			if (is_array($track) and !$this->complex_checked)
+			if (is_array($track))
 			{
 				yield $track=new Need_commandline($track, $this->compacter_host());
 				$track=$track->resolution();
-				$this->complex_checked=true;
 			}
 			if (is_array($track)) $arg_track=array_shift($line=$track);
 			else { $arg_track=$track; $line=[]; }
 			
-			if ($this->iteration==$this->last_iteration) $routine=$this->resolve_endpoint($arg_track, $line);
-			elseif ($this->iteration==0) $routine=$this->resolve_startpoint($arg_track, $line);
-			else $routine=$this->resolve_waypoint($arg_track, $line);
-			
-			yield new \Pokeliga\Task\Need_subroutine($routine);
+			$current_iteration=$this->iteration;
+			while ($current_iteration===$this->iteration)
+			{
+				if ($this->iteration==$this->last_iteration) $routine=$this->resolve_endpoint($arg_track, $line);
+				elseif ($this->iteration==0) $routine=$this->resolve_startpoint($arg_track, $line);
+				else $routine=$this->resolve_waypoint($arg_track, $line);
+				
+				if ($routine instanceof \Generator) yield new \Pokeliga\Task\Need_subroutine($routine);
+				elseif ($routine!==true) throw new \Exception('unexpected track');
+			}
 		}
 	}
 	
-	public function advance_track($location)
+	protected function advance_track($location)
 	{
 		$this->location=$location;
 		$this->iteration++;
-		$this->complex_checked=false;
 	}
 	
-	public function resolve_startpoint($track, $line)
+	protected function resolve_startpoint($track, $line)
 	{
-		// WIP!
-		return $this->resolve_waypoint($track, $line);
+		if ($this->is_anchor($track)) return $this->resolve_anchor($track, $line);
+		else return $this->resolve_waypoint($track, $line);
 	}
 	
-	public function resolve_waypoint($track, $line)
+	protected function is_anchor($track)
 	{
-		if (! duck_instanceof($this->location, '\Pokeliga\Data\Pathway') ) throw new \Exception('bad Pathway waypoint');
-		$call=function() use ($track, $line) { return $this->location->follow_track($track, $line); };
-		yield $need=new \Pokeliga\Task\Need_call($call);
-		$result=$need->resolution();
-		/*
-		vdump(get_class($this));
-		vdump('ORIGINAL: '.implode('.', $this->original_track));
-		vdump('TRACK: '.$track);
-		vdump('LOC: '.get_class($this->location));
-		if ($this->location instanceof \Pokeliga\Template\Template)
-		{
-			vdump('CONTEXT: '.get_class($this->location->context));
-			if ($this->location->context instanceof \Pokeliga\Entity\Entity) vdump('TYPE '.$this->location->context->id_group);
-		}
-		vdump('RESULT: '.get_class($result));
-		vdump($result);
-		vdump('---');
-		*/
+		return $track===static::ANCHOR_ROOT;
+	}
+	
+	protected function resolve_anchor($anchor, $line)
+	{
+		if ($anchor===static::ANCHOR_ROOT) $this->advance_track($this->get_root());
+		throw new \Exception('bad anchor');
+	}
+	
+	protected function get_root()
+	{
+		return Engine(); // FIXME: потом нужна локальная ссылка на движок.
+	}
+	
+	protected function locations()
+	{
+		yield $this->location;
+		if ($this->iteration>0) return;
 		
-		$this->advance_track($result);
+		if ($this->location instanceof HasContext and !empty($context=$this->location->get_context()))
+		{
+			yield $context;
+			foreach ($root->gateways() as $waypoint) yield($waypoint);
+		}
+		
+		yield $root=$this->get_root(); // FIXME: не проверяет, является ли рут Контекстом, поскольку сейчас объект Engine создаётся до понятия о контекстах. В будущем первичную загрузку должен делать прелоадер.
+		foreach ($root->gateways() as $waypoint) yield($waypoint);
 	}
 	
-	public function resolve_endpoint($track, $line)
+	private function normalize_locations($locations)
 	{
-		$this->iteration=null; // чтобы поймать разрешение последней задачи - FIX! плохой метод, поскольку неясный.
-		if (!$this->good_endpoint())
+		if ($locations===null) $locations=$this->locations();
+		if (!($locations instanceof \Traversable)) $locations=[$locations];
+		return $locations;
+	}
+	
+	private function resolve_waypoint($track, $line, $locations=null)
+	{
+		$locations=$this->normalize_locations($locations);
+		foreach ($locations as $location)
 		{
-			// vdump('BAD ENDPOINT: '.$this->track[$this->iteration]); 
-			// vdump($this->location);
-			$this->impossible('bad_endpoint');
+			if (! duck_instanceof($location, '\Pokeliga\Data\Pathway') ) continue;
+			$call=function() use ($track, $line, $location) { return $location->follow_track($track, $line); };
+			yield $need=new \Pokeliga\Task\Need_call($call, false);
+			$result=$need->resolution();
+			if (empty($result) or $result instanceof \Pokeliga\Entlink\Promise and $result->failed()) continue;
+			/*
+			vdump(get_class($this));
+			vdump('ORIGINAL: '.implode('.', $this->track));
+			vdump('TRACK: '.$track);
+			vdump('LOC: '.get_class($location));
+			if ($location instanceof \Pokeliga\Template\Template)
+			{
+				vdump('CONTEXT: '.get_class($this->location->context));
+				if ($location->context instanceof \Pokeliga\Entity\Entity) vdump('TYPE '.$location->context->id_group);
+			}
+			vdump('RESULT: '.get_class($result));
+			vdump($result);
+			vdump('---');
+			*/
+			
+			$this->advance_track($result);
 			return;
 		}
-		$call=function() use ($track, $line) { return $this->ask_endpoint($track, $line); };
-		yield $need=new \Pokeliga\Task\Need_call($call);
-		$result=$need->resolution();
-		if ($this->good_resolution($result)) $this->finish_with_resolution($result);
-		else $this->impossible('bad_resolution');
-		$this->make_calls('proxy_resolved', $result);
+		
+		$this->impossible('bad_waypoint: '.$track);
 	}
 	
-	public abstract function good_endpoint();
+	private function resolve_endpoint($track, $line, $locations=null)
+	{
+		$locations=$this->normalize_locations($locations);
+		foreach ($locations as $location)
+		{
+			if (!$this->good_endpoint($location)) continue;
+			$call=function() use ($track, $line, $location) { return $this->ask_endpoint($track, $line, $location); };
+			yield $need=new \Pokeliga\Task\Need_call($call, false);
+			$result=$need->resolution();
+			if ($result instanceof \Report_impossible or $this->good_resolution($result)) $this->finish_with_resolution($result);
+			else $this->impossible('bad_resolution');
+			$this->make_calls('proxy_resolved', $result);
+			return;
+		}
+		$this->impossible('bad_endpoint');
+	}
 	
-	public abstract function ask_endpoint($track, $line);
+	protected abstract function good_endpoint($location);
 	
-	public abstract function good_resolution($result);
+	protected abstract function ask_endpoint($track, $line, $location);
+	
+	protected abstract function good_resolution($result);
 	
 	public function human_readable_track()
 	{
@@ -157,10 +208,10 @@ abstract class Task_resolve_track extends \Pokeliga\Task\Task implements \Pokeli
 
 class Task_resolve_value_track extends Task_resolve_track
 {
-	public function good_endpoint() { return duck_instanceof($this->location, '\Pokeliga\Data\ValueHost'); }
+	protected function good_endpoint($location) { return duck_instanceof($location, '\Pokeliga\Data\ValueHost'); }
 	
-	public function ask_endpoint($track, $line) { return $this->location->request($track); }
+	protected function ask_endpoint($track, $line, $location) { return $location->request($track); }
 	
-	public function good_resolution($result) { return true; }
+	protected function good_resolution($result) { return true; }
 }
 ?>

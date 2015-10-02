@@ -10,7 +10,6 @@ include($entlink['modules_dir'].'/Basic/Promise.php');
 include($entlink['modules_dir'].'/Basic/Mediator.php');
 include($entlink['modules_dir'].'/Basic/Report/Report.php');
 include($entlink['modules_dir'].'/Basic/Report/Report_final.php');
-include($entlink['modules_dir'].'/Basic/Report/Report_delay.php');
 include($entlink['modules_dir'].'/Basic/Module/Module.php');
 
 ?>

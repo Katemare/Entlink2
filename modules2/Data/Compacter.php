@@ -144,7 +144,7 @@ class Compacter_form_method extends Compacter_method
 	}
 }
 
-// возвращает значение из того же набора; или задачу, в результате которой значение будет заполнено. работает даже для значений сущности. FIX: поскольку этот компактер не всегда раскрывается в задачу, результат вызова сохраняется вместо компактера, то есть фактически кэшируется! что в данном случае неприемлемо.
+// возвращает значение из того же набора; или задачу, в результате которой значение будет заполнено. работает даже для значений сущности. FIXME: поскольку этот компактер не всегда раскрывается в задачу, результат вызова сохраняется вместо компактера, то есть фактически кэшируется! что в данном случае неприемлемо.
 class Compacter_sibling_content extends Compacter
 {
 	public
@@ -174,7 +174,7 @@ class Compacter_sibling_content extends Compacter
 		return $master->request($this->sibling_code);
 	}
 	
-	// FIX! не гарантирует valid_content.
+	// FIXME! не гарантирует valid_content.
 	public function track_from_master($master)
 	{
 		$task=new Task_resolve_value_track($this->sibling_code, $master);

@@ -1,5 +1,82 @@
 <?
-namespace Pokeliga\Template;
+namespace Pokeliga\Retriever;
+
+class Cache
+{
+	use \Pokeliga\Entlink\Multiton;
+	
+	public
+		$cache_code,
+		$cache_num,
+		$expiry;
+	
+	public function __construct($cache_key, $cache_num=null, $expiry=null)
+	{
+		if (is_array($cache_key))
+		{
+			$this->cache_code=$cache_key['code'];
+			if (array_key_exists('num', $cache_key) $this->cache_num=$cache_key['num'];
+			if (array_key_exists('expiry', $cache_key) $this->expiry=$cache_key['expiry'];
+		}
+		else
+		{
+			$this->cache_code=$cache_key;
+			$this->cache_num=$cache_num;
+			$this->expiry=$expiry;
+		}
+	}
+	
+	public function is_numbered() { return $this->cache_num!==null; }
+	
+	public function retrieve()
+	{
+		return $this->create_retrieve_ticket()->get_data_set();
+	}
+	
+	public function save($content)
+	{
+		return $this->create_save_ticket($content)->get_data_set();
+	}
+	
+	public function reset()
+	{
+		return $this->create_reset_ticket()->get_data_set();
+	}
+	
+	public function create_retrieve_ticket()
+	{
+		if ($this->is_numbered()) return new RequestTicket('Request_cache_numbered', [$this->cache_code], [$this->cache_num]);
+		else return new RequestTicket('Request_cache_numbered', [], [$this->cache_num]);
+	}
+	
+	public function create_save_ticket($content)
+	{
+		$query=
+		[
+			'action'=>'replace',
+			'table'=>'info_cache',
+			'value'=>
+			[
+				'code'=>$this->cache_code,
+				'num'=>$this->cache_num===null ? 1 : $this->cache_num,
+				'expires'=>$this->expiry===null ? (time()+$this->cache_key['expiry']) : null,
+				'content'=>$content
+			]
+		];
+		return new RequestTicket('Request_insert', [$query], []);
+	}
+	
+	public function create_reset_ticket()
+	{
+		$query=
+		[
+			'action'=>'delete',
+			'table'=>'info_cache',
+			'where'=>['code'=>$this->cache_code, 'num'=>$this->cache_num===null ? 1 : $this->cache_num]
+		];
+		return new RequestTicket('Request_delete', [$query], []);
+	}
+}
 
 class Task_retrieve_cache extends Task
 {
@@ -19,7 +96,7 @@ class Task_retrieve_cache extends Task
 		return $task;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		if (array_key_exists('num', $this->cache_key)) return new RequestTicket(static::NUMBERED_REQUEST_CLASS, [$this->cache_key['code']], [$this->cache_key['num']]);
 		else return new RequestTicket(static::UNNUMBERED_REQUEST_CLASS, [], [$this->cache_key['code']]);
@@ -50,7 +127,7 @@ class Task_save_cache extends Task_retrieve_cache
 		return $task;
 	}
 
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$query=
 		[
@@ -109,9 +186,9 @@ class Request_cache_numbered extends Request_by_unique_field
 		parent::__construct('info_cache', 'num');
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		$query['where']['code']=$this->code;
 		$query['where'][]=['expression'=>'({{expires}} IS NULL OR {{expires}}>'.time().')'];
 		return $query;
@@ -127,9 +204,9 @@ class Request_cache_unnumbered extends Request_by_unique_field
 		parent::__construct('info_cache', 'code');
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		$query['where']['num']=1;
 		$query['where'][]=['expression'=>'({{expires}} IS NULL OR {{expires}}>'.time().')'];
 		return $query;
@@ -158,7 +235,7 @@ class Request_cache_numbered_reset extends Request
 		return true;
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
 		if (empty($this->nums)) return null;
 		$query=
@@ -197,7 +274,7 @@ class Request_cache_unnumbered_reset extends Request
 		return true;
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
 		if (empty($this->codes)) return null;
 		$query=

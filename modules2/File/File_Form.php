@@ -80,7 +80,7 @@ abstract class Form_image_point extends Form_entity
 				'template'=>'hidden',
 				'for_entity'=>true
 			],
-			// FIX: в принципе эти зависимости координат может и не добавлять, потому что они уже будут проверены при создании сущности. нужно выработать философию на этот счёт.
+			// FIXME: в принципе эти зависимости координат может и не добавлять, потому что они уже будут проверены при создании сущности. нужно выработать философию на этот счёт.
 			'coord_x'=>
 			[
 				'type'=>'coord_x',
@@ -525,9 +525,9 @@ class Template_field_select_fragment extends Template_field_select
 	{
 		$image_source=$this->value_model_now('image_source');
 		$image=$this->field->produce_value($image_source);
-		$entity=$image->get_entity(); // FIX: пока не предполагает действий в случае, если значение ещё не заполнено (но такая ситуация сейчас не бывает).
+		$entity=$image->get_entity(); // FIXME: пока не предполагает действий в случае, если значение ещё не заполнено (но такая ситуация сейчас не бывает).
 		
-		$fragments=$entity->value_object('fragments'); // FIX: также пока не предполагает реакции на то, что для получения объекта требуется подтверждение сущности, но в текущем использовании это не создаёт проблем.
+		$fragments=$entity->value_object('fragments'); // FIXME: также пока не предполагает реакции на то, что для получения объекта требуется подтверждение сущности, но в текущем использовании это не создаёт проблем.
 		$options=$fragments->options();
 		if ( (is_array($options)) && ($this->in_value_model('null')) && ($this->value_model_now('null')==true) ) $options=[0=>'Нет']+$options;
 		return $options;

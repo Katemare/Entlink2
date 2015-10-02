@@ -116,7 +116,7 @@ class Filler_by_task extends Filler
 	}
 }
 
-// FIX: используется всего в одном месте, желательно убратью
+// FIXME: используется всего в одном месте, желательно убратью
 class Filler_delay extends Filler
 {
 	public

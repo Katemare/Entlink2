@@ -3,7 +3,7 @@ namespace Pokeliga\Entity;
 
 interface Select_provides_ticket
 {
-	public function create_request();
+	public function create_request_ticket();
 }
 
 // наполняет значение класса Value_linkset
@@ -38,7 +38,7 @@ abstract class Select extends Filler_for_entity implements \Pokeliga\Template\Te
 		elseif ( ($value->in_value_model('order'))&&(!($selector instanceof Select_ordered_request)) )
 		{
 			$value->reset();
-			$selector=$selector->select_ordered($value->value_model_now('order')); // FIX: рекурсия должна обеспечиваться как-то иначе, потому что select_ordered() может выдавать селекторы разного рода.
+			$selector=$selector->select_ordered($value->value_model_now('order')); // FIXME: рекурсия должна обеспечиваться как-то иначе, потому что select_ordered() может выдавать селекторы разного рода.
 			$selector->set_value($value);
 		}
 
@@ -179,7 +179,7 @@ abstract class Select extends Filler_for_entity implements \Pokeliga\Template\Te
 	
 	// возвращает валидаторы, выполнение которых необходимо для проверки присутствия сущности в наборе, помимо соответствия id_group. позволяет проверить принадлежность сущности к набору без того, чтобы получать весь набор. это также значит, что условия включения в набор должны быть прописаны и здесь, и в создании запроса - что не очень хорошо, но связать их воедино пока не получается.
 	public function list_validators() { }
-	// FIX! не используется, зато есть дублирующийся функционал: интерфейс Select_has_range_validator
+	// FIXME! не используется, зато есть дублирующийся функционал: интерфейс Select_has_range_validator
 	
 	// возвращает Селектор, добавляющий в выборку дополнительные условия. каждый вызов поочерёдно принимает RequestTicket и актуальный выборщик, возвращая новый (или тот же) RequestTicket.
 	public abstract function select_modified_by_calls(...$calls);
@@ -245,17 +245,17 @@ abstract class Select_by_single_request extends Select implements Select_provide
 	}
 	
 	/*
-	abstract public function create_request();
+	abstract public function create_request_ticket();
 	*/
 	
-	// для работы уточняющих выборщиков (типа Select_ordered). В результате должен быть возвращён тикет запроса, выбирающего строки из основной базовой таблицы сущности и поле с айдишниками в которых называется "id". FIX: это невозможно в случае, если выбираются сущности разного типа - но пока такого случая нет.
+	// для работы уточняющих выборщиков (типа Select_ordered). В результате должен быть возвращён тикет запроса, выбирающего строки из основной базовой таблицы сущности и поле с айдишниками в которых называется "id". FIXME: это невозможно в случае, если выбираются сущности разного типа - но пока такого случая нет.
 	public function create_standard_request()
 	{
-		return $this->create_request();
+		return $this->create_request_ticket();
 	}
 	public function produce_range_query()
 	{
-		return $this->get_request()->make_query();
+		return $this->get_request()->create_query();
 	}
 	
 	public function select_modified_by_calls(...$calls)
@@ -309,12 +309,12 @@ abstract class Select_by_single_request extends Select implements Select_provide
 	
 	public function extract_count()
 	{
-		return new RequestTicket_count($this->create_request());
+		return new RequestTicket_count($this->create_request_ticket());
 	}
 	
 	public function extract_stats($stats)
 	{
-		return new RequestTicket('Request_group_functions', [$this->create_request()], [$stats]);
+		return new RequestTicket('Request_group_functions', [$this->create_request_ticket()], [$stats]);
 	}
 }
 
@@ -335,7 +335,7 @@ class Select_by_ticket extends Select_by_single_request
 		return $select;
 	}
 
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$ticket=$this->value_model_now('ticket');
 		if (!($ticket instanceof \Pokeliga\Retriever\RequestTicket)) die('NO TICKET');
@@ -353,7 +353,7 @@ class Select_modified_request extends Select_by_single_request
 		$this->calls=$calls;
 	}
 		
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$ticket=$this->original_select->create_standard_request();
 		foreach ($this->calls as $call)
@@ -374,7 +374,7 @@ class Select_random_from_request extends Select_by_single_request
 		$this->limit=$limit;
 	}
 		
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_random', [$this->original_select->create_standard_request(), $this->limit]);
 	}
@@ -385,7 +385,7 @@ class Select_ordered_request extends Select_by_single_request
 	public
 		$order;
 		
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_ordered', [$this->original_select->create_standard_request(), $this->order]);
 	}
@@ -408,7 +408,7 @@ class Select_limited_from_request extends Select_ordered_request
 		$this->limit=$limit;
 	}
 		
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_limited', [$this->original_select->create_standard_request(), $this->order], [$this->limit]);
 	}
@@ -428,7 +428,7 @@ class Select_page_from_request extends Select_ordered_request implements \Pokeli
 		$this->per_page=$per_page;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_page', [$this->original_select->create_standard_request(), $this->order, $this->page, $this->per_page], []);
 	}
@@ -533,7 +533,7 @@ class Select_filter extends Select
 			}
 			$base=$this->get_base_selector();
 			if (!($base instanceof Select_provides_ticket)) return $this->sign_report(new \Report_impossible('bad_base_selector'));
-			$this->request=$base->create_request();
+			$this->request=$base->create_request_ticket();
 			$this->id_key=$base->id_key();
 			return $this->advance_step();
 		}
@@ -702,7 +702,7 @@ class Select_filter extends Select
 		die('UNIMPLEMENTE YET: filtered search');
 	}
 	
-	// возвращает Селектор со случайными результатами /итоговой выборки/. фильтр останавливает работу, когда отобрал достаточно элементов, поэтому используется процесс с приоритетом (FIX: важно ли, чтобы перемешанные с помощью RAND() элементы отбирались в порядке с первого по последний? или достаточно $limit любых подходящих элементов, и распределение сохранится? возможно, нет: к некоторым данные могли быть получены заранее и поэтому страницы с той или иной конфигурацией могут показывать не вполне случайные элементы).
+	// возвращает Селектор со случайными результатами /итоговой выборки/. фильтр останавливает работу, когда отобрал достаточно элементов, поэтому используется процесс с приоритетом (FIXME: важно ли, чтобы перемешанные с помощью RAND() элементы отбирались в порядке с первого по последний? или достаточно $limit любых подходящих элементов, и распределение сохранится? возможно, нет: к некоторым данные могли быть получены заранее и поэтому страницы с той или иной конфигурацией могут показывать не вполне случайные элементы).
 	public function select_random($limit=20)
 	{
 		$select=$this::derieved($this, 'random');
@@ -757,7 +757,7 @@ class Select_all extends Select_by_single_request
 		return $this->table;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_all', [$this->table()]);
 	}
@@ -850,7 +850,7 @@ class Select_by_field extends Select_by_single_request
 		parent::apply_data($data);
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_by_field', [$this->table(), $this->field(), $this->additional_conditions()], [$this->content()]);
 	}
@@ -932,7 +932,7 @@ class Select_generic_linked extends Select_by_single_request
 		return $this->relation;
 	}
 
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$ticket=new RequestTicket('Request_generic_links', [$this->position(), $this->opposite_id_group(), $this->source_id_group()], [$this->entity->db_id, $this->relation()]);
 		return $ticket;
@@ -940,9 +940,9 @@ class Select_generic_linked extends Select_by_single_request
 	
 	public function create_standard_request()
 	{
-		$ticket=$this->create_request();
+		$ticket=$this->create_request_ticket();
 		$ticket->standalone();
-		$query=$ticket->make_query();
+		$query=$ticket->create_query();
 		$query=Query::from_array($query);
 		
 		$type=$this->id_group();

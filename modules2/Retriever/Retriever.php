@@ -256,7 +256,7 @@ class Retriever implements \Pokeliga\Entlink\Multiton_host
 	}
 	
 	// позволяет Ретриверу получать данные от других объектов.
-	// FIX: позже это будет делать объект-запрос.
+	// FIXME: позже это будет делать объект-запрос.
 	public function receive($table, $row)
 	{
 		$this->data[$table][$row['id']]=$row;

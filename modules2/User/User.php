@@ -42,7 +42,7 @@ class User extends EntityType
 		if (!static::logged_in()) $result=null;		
 		else
 		{		
-			if ($pool===null) $pool=EntityPool::default_pool(); // FIX! необходимо предусмотреть возможность клонирования пула.	
+			if ($pool===null) $pool=EntityPool::default_pool(); // FIXME! необходимо предусмотреть возможность клонирования пула.	
 			$result=$pool->entity_from_db_id(static::current_user_id(), 'User');
 		}
 		static::$current_user=$result;
@@ -133,7 +133,7 @@ class User_contributor extends Aspect
 				'backlink_field'=>'contributor',
 				'select_table'=>'contributions',
 				'select_conditions'=>['id_group'=>'Mission']
-				// FIX! подобные поля - первый кандидат на использование EntityQuery вместо Query.
+				// FIXME! подобные поля - первый кандидат на использование EntityQuery вместо Query.
 			],
 			'suggested_missions'=>
 			[

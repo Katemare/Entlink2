@@ -14,7 +14,7 @@ interface RouteMapper
 
 abstract class RouterHub implements Router
 {
-	use Page_spawner;
+	// use Page_spawner;
 	abstract public function route($route);
 }
 

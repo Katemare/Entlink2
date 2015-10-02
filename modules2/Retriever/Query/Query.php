@@ -73,7 +73,7 @@ class Query implements \ArrayAccess, \Pokeliga\Entlink\Multiton_argument
 	{
 		return array_key_exists($offset, $this->query);
 	}
-	// FIX! когда это используется в форме $query[ключ][ключ]=значение, то не запускается normalize()
+	// FIXME! когда это используется в форме $query[ключ][ключ]=значение, то не запускается normalize()
 	public function &offsetGet($offset)
 	{
 		if (!array_key_exists($offset, $this->query)) $this->query[$offset]=[];

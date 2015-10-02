@@ -24,7 +24,7 @@ class Value_post_links extends Value_linkset
 
 class Select_post_links extends Select_by_single_request
 {
-	public function create_request()
+	public function create_request_ticket()
 	{
 		
 	}
@@ -85,7 +85,7 @@ class ValueType_post_linkset extends \Pokeliga\Data\Value implements \Pokeliga\D
 		);
 	}
 	
-	// FIX! избавиться от копипасты.
+	// FIXME! избавиться от копипасты.
 	public function template($name, $line=[])
 	{
 		return $this->relate_to_subvalue

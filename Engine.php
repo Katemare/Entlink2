@@ -84,6 +84,7 @@ class Engine implements Multiton_host
 		$modules_path=null, // /var/www/pokeliga/entlink/modules
 
 		$namespaces=[], // соответствия пространство имён => модуль для автозагрузки классов.
+		$global_classes=[],
 		$tracks=[], // модули и другие глобальные объекты, которые могут распознавать адресацию в ключевых словах, типа adopts.current_player,
 		$templaters=[], // модули и другие глобальные объекты, которые должны реагировать на короткие записи типа {{announcement}}, отдавая шаблоны.
 		$route_mappers=[], // модули и другие глобальные объекты, проводящие карты для роутеров.
@@ -202,7 +203,16 @@ class Engine implements Multiton_host
 	
 	public function setup_shutdown()
 	{
-		register_shutdown_function(function() { debug_dump(); });
+		global $debug;
+		if ($debug) register_shutdown_function([$this, 'shutdown_debug']);
+	}
+	
+	public function shutdown_debug()
+	{
+		echo 'TASKS CREATED: '.\Pokeliga\Task\Task::$next_object_id.'<br>';
+		echo 'TASKS COMPLETED: '.\Pokeliga\Task\Task::$completed_count.'<br>';
+		echo 'PROCESS PASSES: '.\Pokeliga\Task\Process::$passes_count.'<br>';
+		debug_dump();
 	}
 	
 	// устанавливает функции, подключающие требуемые классы.
@@ -213,10 +223,14 @@ class Engine implements Multiton_host
 		spl_autoload_register( [$this, 'finish_autoload'] );
 	}
 	
-	// эта функция вызывается модулями, когда те хотят зарегистрировать свои "быстрые классы", автозагружаемые по быстрому алгоритму.
 	public function register_namespace($namespace, $module)
 	{
 		$this->namespaces[$namespace]=$module;
+	}
+	
+	public function register_global_class($class, $module)
+	{
+		$this->global_classes+=array_fill_keys($class, $module);
 	}
 	
 	public function register_value_types($type_data)
@@ -256,6 +270,11 @@ class Engine implements Multiton_host
 	{
 		if (array_key_exists($class_name, $this->no_class)) return;
 		
+		if (array_key_exists($class_name, $this->global_classes))
+		{
+			$this->global_classes[$class_name]->quick_autoload($class_name);
+			if (class_exists($class_name, false)) return;
+		}
 		if (empty($this->ns_ex)) $this->ns_ex='/^('.implode('|', array_map('preg_quote', array_keys($this->namespaces))).')\\\\(.+)$/';
 		if (preg_match($this->ns_ex, $class_name, $m)) $this->namespaces[$m[1]]->quick_autoload($m[2]);
 		/*

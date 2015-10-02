@@ -100,7 +100,7 @@ class Provide_recent_user_log extends Provider
 		$this->conditions=reset($args);
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$query=
 		[

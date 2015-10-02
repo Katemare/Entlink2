@@ -25,6 +25,17 @@ abstract class Need extends Task implements \Pokeliga\Entlink\Mediator
 		if ($this->mandatory) $this->impossible($task);
 		parent::on_failed_dependancy($task, $identifier);
 	}
+	
+	public function to_abort()
+	{
+		return $this->mandatory and $this->failed();
+	}
+	
+	public function abort_reason()
+	{
+		if (!$this->to_abort()) throw new \Exception('inappropriate abort reason request');
+		if ($this->failed()) return $this->get_errors();
+	}
 }
 
 // получает данные либо отказ (Report_impossible) из одного произвольного объекта. если объект требует выполнения, то выполняети получает данные.
@@ -111,6 +122,12 @@ class Need_all extends Need implements \ArrayAccess
 		}
 		unset($this->required);
 		$this->finish();
+	}
+	
+	public function to_abort()
+	{
+		return $this->failed();
+		// данная необходимость, если не является обязательной, должна закончиться с успешным результатом (даже если этим результатом будет массив отчётов о невозможности). следовательно, в любом случае когда она провалилась - к примеру, из-за собственной ошибки - необходимо прекратить процесс.
 	}
 	
 	public function offsetExists($offset)

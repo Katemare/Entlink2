@@ -91,7 +91,7 @@ class Task_save_entity extends Task_for_entity
 		elseif ($this->step===static::STEP_COLLECT_KEEPERS)
 		{
 			// этот блок пока не учитывает значения, которые по умолчанию отсутствуют. хотя их могут учесть их киперы.
-			// FIX: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
+			// FIXME: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
 			
 			if ($this->entity->state===Entity::STATE_FAILED) return new \Report_impossible('saving_failed_entity', $this);
 			
@@ -199,7 +199,7 @@ class Task_save_entity extends Task_for_entity
 	
 	public function create_request($fields, $table)
 	{
-		if ($table===Keeper_var::VAR_TABLE) return $this->create_var_request($fields); // FIX! Пока нет времени делать как следует.
+		if ($table===Keeper_var::VAR_TABLE) return $this->create_var_request($fields); // FIXME! Пока нет времени делать как следует.
 		$query=
 		[
 			'action'=>'update',
@@ -212,7 +212,7 @@ class Task_save_entity extends Task_for_entity
 		return $request;
 	}
 	
-	// FIX! Пока нет времени делать как следует.
+	// FIXME! Пока нет времени делать как следует.
 	public function create_var_request($fields)
 	{
 		$result=[];
@@ -302,7 +302,7 @@ class Task_save_new_entity extends Task_save_entity
 		elseif ($this->step===static::STEP_COLLECT_KEEPERS)
 		{
 			// этот блок пока не учитывает значения, которые по умолчанию отсутствуют. хотя их могут учесть их киперы.
-			// FIX: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
+			// FIXME: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
 			
 			foreach ($this->entity->dataset->model as $code=>$model)
 			{				
@@ -371,7 +371,7 @@ class Task_save_new_entity extends Task_save_entity
 	
 	public function create_request($fields, $table)
 	{
-		if ($table===Keeper_var::VAR_TABLE) return parent::create_request($fields, $table); // FIX! пока нет времени делать по-правильному.
+		if ($table===Keeper_var::VAR_TABLE) return parent::create_request($fields, $table); // FIXME! пока нет времени делать по-правильному.
 		if ($this->step===static::STEP_SAVE)
 		{
 			$fields['id']=$this->received_id;
@@ -461,7 +461,7 @@ class Task_save_generic_links extends \Pokeliga\Task\Task
 				'where'=>[$this->host_type_field=>$this->host_id_group, $this->host_id_field=>$this->host->db_id, 'relation'=>$this->relation]
 			];
 		}
-		elseif ($this->request instanceof \Pokeliga\Retriever\Request_delete) // не работает с тикетами! FIX?
+		elseif ($this->request instanceof \Pokeliga\Retriever\Request_delete) // не работает с тикетами! FIXME?
 		{
 			if (empty($this->linked))
 			{
@@ -583,7 +583,7 @@ class Task_resolve_entity_call extends Task_for_entity implements \Pokeliga\Task
 	{
 		if ($this->step===static::STEP_FINISH)
 		{
-			if ($task->failed()) $this->impossible($task->errors);
+			if ($task->failed()) $this->impossible($task);
 			else $this->finish_with_resolution($task->resolution);
 		}
 	}
@@ -947,7 +947,7 @@ class Task_calc_aspect_right extends Task_for_entity
 		$result=$this->aspect->has_right(...$this->args);
 		if ($result instanceof \Report_impossible)
 		{
-			$this->impossible($result->errors);
+			$this->impossible($result);
 			return;
 		}
 		if ($result instanceof \Report) die('BAD RIGHT REPORT');

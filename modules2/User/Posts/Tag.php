@@ -22,7 +22,7 @@ class Tag extends EntityType
 		[
 			'basic'			=>'Tag_basic',
 			'contribution'	=>'Contribution_identity',
-			'adopts'		=>'Tag_adopts' // FIX! должно добавляться модулем игры.
+			'adopts'		=>'Tag_adopts' // FIXME! должно добавляться модулем игры.
 		],
 		$default_table='info_tags';
 }

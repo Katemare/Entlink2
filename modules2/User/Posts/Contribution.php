@@ -109,7 +109,7 @@ class Provide_contribution_by_id extends Provide_by_single_request
 		return $this->get_request()->get_data_set($this->id);
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return Request_by_id_and_group::instance(Contribution_identity::$default_table, $this->id_group);
 	}
@@ -129,7 +129,7 @@ class Template_contribution_from_db extends Template_from_db
 // STUB! это работа для критериев в квадратных скобках или для какого-нибудь другого универсального подхода.
 class Select_by_availability extends Select_all
 {
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_by_availability', [$this->id_group(), $this->value_model_now('available')]);
 	}
@@ -151,9 +151,9 @@ class Request_by_availability extends Request_all
 		parent::__construct($id_group::$default_table);
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		$query=Query::from_array($query);
 		$query->add_table(Contribution_identity::$default_table, 'contribution', ['field'=>'id', 'value_field'=>['contribution', 'id']], ['field'=>['contribution', 'id_group'], 'value'=>$this->id_group]);
 		$query->add_complex_condition(['field'=>['contribution', 'available'], 'value'=>$this->available]);

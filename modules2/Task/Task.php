@@ -18,7 +18,10 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 		STEP_INIT=0, // для черты Task_steps, потому что у черт не может быть констант.
 		// следующие статусы служат исключительно одной цели - объяснить, почему progressable===false.
 		STATE_DEPENDS=1;
-		
+	
+	static
+		$completed_count=0;
+	
 	public
 		$progressable=true, // принимает true (можно двигаться), false (движение закончилось) или одну из констант выше (нельзя двигаться по такой-то причине).
 		$complete=null, // null - не закончена, false - невозможно закончить, true - успешно закончена.
@@ -79,6 +82,8 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 		$task->register_dependancy($this, $identifier);
 	}
 	public function to_task() { return $this; }
+	
+	public function get_errors() { return $this->errors; }
 	
 	########################
 	### Полезные функции ###
@@ -284,6 +289,8 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 		$this->progressable=false;
 		$this->complete=$success;
 		
+		global $debug; if ($debug) static::$completed_count++; // DEBUG
+		
 		if ($success)
 		{
 			$this->log('success');
@@ -316,11 +323,7 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 	public function impossible($errors=null)
 	{
 		if ($this->completed()) return;
-		if ($errors instanceof \Pokeliga\Entlink\Promise)
-		{
-			if (!$errors->failed()) throw new \Exception('impossible() by non-failed Promise');
-			$errors=$errors->resolution();
-		}
+		if ($errors instanceof \Pokeliga\Entlink\Promise and !$errors->failed()) throw new \Exception('impossible() by non-failed Promise');
 		if ($errors instanceof \Pokeliga\Entlink\ErrorsContainer) $errors=$errors->get_errors();
 		
 		if (is_array($errors)) $this->errors=$errors;
@@ -332,6 +335,9 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 	public function finish_with_resolution($resolution)
 	{
 		if ($this->completed()) return;
+		if ($resolution instanceof \Report_impossible) $this->finish_by_report($resolution);
+		elseif (\is_mediator($resolution)) throw new \Exception('bad resolution');
+		
 		$this->resolution=$resolution;
 		$this->success();
 	}
@@ -534,15 +540,23 @@ trait Task_steps
 	public function process_step_report($result)
 	{
 		if ($this->completed()) return;
-		elseif ($result===null) $this->impossible('unknown_step: '.$this->step);
+		elseif ($result===null) throw new \Exception('unknown task_step');
 		elseif ($result===true) return;
 		elseif ($result instanceof \Report_dependant)
 		{
 			$result->register_dependancies_for($this);
 			if ($this->progressable===true) $this->move_forward(); // если все зависимости отказались уже выполненными.
 		}
-		elseif ($result instanceof \Report_final) $this->finish_by_report($result);
-		else { vdump('UNKNOWN RESULT: '); vdump($result); vdump($this); exit; }
+		elseif (\is_mediator($result) and $result instanceof \Promise)
+		{
+			if ($result->completed()) $this->finish_by_promise($result);
+			else
+			{
+				$promise->register_dependancies_for($this);
+				if ($this->progressable===true) $this->move_forward(); // если все зависимости отказались уже выполненными.
+			}
+		}
+		else throw new \Exception('unknown task_step');
 	}
 	
 	public function dependancies_resolved()
@@ -575,7 +589,7 @@ trait Task_steps
 	public abstract function run_step();
 }
 
-// FIX: возможно, после обновления механизмов будет не нужна.
+// FIXME: возможно, после обновления механизмов будет не нужна.
 class Task_delayed_call extends Task implements Task_proxy
 {
 	public
@@ -608,7 +622,7 @@ class Task_delayed_call extends Task implements Task_proxy
 		{
 			$call=$this->call;
 			$result=$call();
-			if ($result instanceof \Report_impossible) $this->impossible($result->errors);
+			if ($result instanceof \Report_impossible) $this->impossible($result);
 			elseif ($result instanceof \Report_success)
 			{
 				if ($result instanceof \Report_resolution) $this->resolution=$result->resolution;

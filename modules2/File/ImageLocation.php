@@ -260,9 +260,9 @@ class Request_image_locations_with_type extends Request_by_field
 		parent::__construct(ImageLocation_basic::$default_table, 'image');
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
-		$query=parent::make_query();
+		$query=parent::create_query();
 		if ($this->type!==null) $query['where']['location_type']=$this->type;
 		return $query;
 	}
@@ -287,7 +287,7 @@ class Select_image_locations extends Select_by_single_request
 		if ($this->in_value_model('location_type')) return $this->value_model_now('location_type');
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$class=static::REQUEST_CLASS;
 		return new RequestTicket($class, [$this->type()], [$this->entity->db_id]);

@@ -178,7 +178,7 @@ class Keeper_db extends Keeper
 		$this->prepare();
 		$report=$this->set_from_db(\Pokeliga\Retriever\Request::GET_DATA_SOFT);
 		
-		if ( ($report instanceof \Report_impossible) && (reset($report->errors)==='uncompleted') ) // STUB!
+		if ( ($report instanceof \Report_impossible) && (reset($report->get_errors())==='uncompleted') ) // STUB!
 		{
 			$this->mode=static::MODE_LOAD;
 			$this->reset();
@@ -215,7 +215,7 @@ class Keeper_db extends Keeper
 		if ($result instanceof \Report_tasks) $result->register_dependancies_for($this);
 		elseif ($result instanceof \Report_impossible)
 		{
-			$this->impossible($result->errors);
+			$this->impossible($result);
 			return $result;
 		}
 	}
@@ -326,11 +326,11 @@ class Keeper_var extends Keeper
 	
 	public function get_request()
 	{
-		if ($this->request===null) $this->request=$this->create_request();
+		if ($this->request===null) $this->request=$this->create_request_ticket();
 		return $this->request;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket_entity_var($this->id(), $this->id_group(),  $this->code());
 	}
@@ -366,7 +366,7 @@ class Keeper_var extends Keeper
 		else $this->finish_with_resolution($this->resolution_from_result($result));
 	}
 	
-	// FIX: не подходит для не-скалярных значений по умолчанию.
+	// FIXME: не подходит для не-скалярных значений по умолчанию.
 	public function method()
 	{
 		if ($this->got_default) return static::METHOD_SET;

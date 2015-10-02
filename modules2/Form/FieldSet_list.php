@@ -187,7 +187,7 @@ class FieldSet_list extends FieldSet_sub
 	
 	public function extract_list($content)
 	{
-		if ($content instanceof \Pokeliga\Entity\EntitySet) $content=$content->values; // FIX: и другие типы ValueSet'ов?
+		if ($content instanceof \Pokeliga\Entity\EntitySet) $content=$content->values; // FIXME: и другие типы ValueSet'ов?
 		if (!is_array($content)) return $this->sign_report(new \Report_impossible('bad_content'));
 		
 		$list=[];

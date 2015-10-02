@@ -100,7 +100,7 @@ class Validator_PiP extends Validator_for_entity_value
 	{
 		if ($this->step===static::STEP_PRIMARY_REQUESTS)
 		{
-			if (!($this->value instanceof Value_coords)) die ('BAD COORDS VALUE'); // FIX
+			if (!($this->value instanceof Value_coords)) die ('BAD COORDS VALUE'); // FIXME
 			$this->x=$this->value->subvalue('x')->content();
 			$this->y=$this->value->subvalue('y')->content();
 			

@@ -51,7 +51,7 @@ trait Page_entity_specific
 	public function analyze_input()
 	{
 		$entity=$this->entity();
-		if ($entity instanceof \Report_impossible) return $this->record_error(reset($entity->errors));
+		if ($entity instanceof \Report_impossible) return $this->record_error(reset($entity));
 		if ( ($validate=$this->valid_entity($entity))!==true) return $this->record_error($validate);
 		return $this->advance_step();
 	}

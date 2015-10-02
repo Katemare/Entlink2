@@ -162,7 +162,7 @@ abstract class Provide_by_single_request extends Provider
 	}
 	
 	/*
-	abstract public function create_request();
+	abstract public function create_request_ticket();
 	*/
 }
 
@@ -207,7 +207,7 @@ class Provide_by_unique_field extends Provide_by_single_request
 		return $this->table;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_by_unique_field', [$this->table(), $this->field()], [$this->value_content()]);
 	}
@@ -222,7 +222,7 @@ class Provide_by_field /* non-unique */extends Provide_by_unique_field
 		parent::apply_data($data);
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket('Request_by_field', [$this->table(), $this->field()], [$this->value_content()]);
 	}
@@ -230,7 +230,7 @@ class Provide_by_field /* non-unique */extends Provide_by_unique_field
 
 class Provide_by_unique_field_case_insensitive extends Provide_by_unique_field
 {
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket_case_insensitive('Request_by_unique_field', [$this->table(), $this->field()], [$this->value_content()]);
 	}
@@ -238,7 +238,7 @@ class Provide_by_unique_field_case_insensitive extends Provide_by_unique_field
 
 class Provide_by_field_case_insensitive extends Provide_by_field
 {
-	public function create_request()
+	public function create_request_ticket()
 	{
 		return new RequestTicket_case_insensitive('Request_by_field', [$this->table(), $this->field()], [$this->value_content()]);
 	}
@@ -290,12 +290,12 @@ class Provide_sibling extends Provide_by_single_request
 		parent::progress();
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
-		return new RequestTicket('Request_single', [$this->make_query()]);
+		return new RequestTicket('Request_single', [$this->create_query()]);
 	}
 	
-	public function make_query()
+	public function create_query()
 	{
 		$query=
 		[
@@ -334,7 +334,7 @@ class Provide_random extends Provide_by_single_request
 		return $this->table;
 	}
 	
-	public function create_request()
+	public function create_request_ticket()
 	{
 		$range=new RequestTicket($this->request_class, [$this->table()]);
 		return new RequestTicket('Request_random', [$range, 1]);

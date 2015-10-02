@@ -333,7 +333,7 @@ class Fill_entity_proceducal_value_with_callback extends Fill_entity_producal_va
 		}
 		elseif ($report instanceof \Report_impossible)
 		{
-			$this->impossible($report->errors);
+			$this->impossible($report);
 		}
 		else die ('BAD CALLBACK REPORT');
 	}
@@ -403,7 +403,7 @@ class Fill_entity_proceducal_value_with_callback extends Fill_entity_producal_va
 		}
 		elseif ($result instanceof \Report_impossible)
 		{
-			$this->impossible($result->errors);		
+			$this->impossible($result);		
 		}
 		elseif ($result instanceof \Report_task)
 		{
@@ -436,7 +436,7 @@ class Fill_entity_by_provider extends Fill_entity_proceducal_value_with_callback
 		elseif ($report instanceof \Report_impossible)
 		{
 			if ($this->in_value_model('default')) $this->finish_with_resolution($this->value_model_now('default'));
-			else $this->impossible($report->errors);
+			else $this->impossible($report);
 		}
 		else die ('BAD CALLBACK REPORT');
 	}

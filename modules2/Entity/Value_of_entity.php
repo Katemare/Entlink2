@@ -51,7 +51,7 @@ class Value_of_entity extends \Pokeliga\Data\Value
 			// даже если значение константно, нужно перепроверить: а что если изменилась модель?
 			
 			$this->save_changes=true;
-			// FIX: вообще значение пока не должно знать об этом параметре.
+			// FIXME: вообще значение пока не должно знать об этом параметре.
 		}
 		$this->dependants_are_irrelevant();
 	}

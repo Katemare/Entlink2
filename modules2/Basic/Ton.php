@@ -2,7 +2,7 @@
 
 namespace Pokeliga\Entlink;
 
-// FIX! Мультитон, Синглтон и Нотон должны, во-первых, не пользоваться статистическими параметрами, а во-вторых - быть взаимозаменяемыми (чтобы не ломать класс при изменении характера его "тонности"). Задача этих черт - общность данных, например, складывающихся запросов к БД. В остальных случаях это и не используется, в общем-то.
+// FIXME! Мультитон, Синглтон и Нотон должны, во-первых, не пользоваться статистическими параметрами, а во-вторых - быть взаимозаменяемыми (чтобы не ломать класс при изменении характера его "тонности"). Задача этих черт - общность данных, например, складывающихся запросов к БД. В остальных случаях это и не используется, в общем-то.
 
 // функционал классов, существующих в единственном экземпляре.
 trait Singleton
@@ -104,7 +104,7 @@ function flatten_Multiton_args($carry, $item)
 	if ($item===true) $flat='true';
 	elseif ($item===false) $flat='false';
 	elseif ($item===null) $flat='null';
-	elseif (is_array($item)) $flat='['.array_reduce($item, 'flatten_Multiton_args').']';
+	elseif (is_array($item)) $flat='['.array_reduce($item, '\Pokeliga\Entlink\flatten_Multiton_args').']';
 	elseif (is_object($item))
 	{
 		if ($item instanceof Multiton_argument) $flat=$item->Multiton_argument();

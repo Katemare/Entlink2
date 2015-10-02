@@ -1,8 +1,8 @@
 <?
 namespace Pokeliga\Data;
 
-// FIX: здесь во многих местах упоминается Select_filter, потому это должно быть сделано изящнее.
-// FIX: возможно, этот класс должен быть переписан под корутины.
+// FIXME: здесь во многих местах упоминается Select_filter, потому это должно быть сделано изящнее.
+// FIXME: возможно, этот класс должен быть переписан под корутины.
 class Template_found_options extends \Pokeliga\Form\Template_field_select_searchable
 {
 	const
