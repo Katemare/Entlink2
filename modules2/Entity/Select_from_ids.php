@@ -1,6 +1,7 @@
 <?
+namespace Pokeliga\Entity;
 
-class Select_from_ids extends Selector implements Select_provides_ticket
+class Select_from_ids extends Select implements Select_provides_ticket
 {
 	public
 		$ids=null,
@@ -177,7 +178,7 @@ class Select_special_from_complex extends Select_from_ids
 	public function delayed_call_report($method, $args=[])
 	{
 		$call=new Call([$this, $method], ...$args);
-		return $this->sign_report(new Report_task(Task_delayed_call::with_call($call, $this)));
+		return $this->sign_report(new \Report_task(Task_delayed_call::with_call($call, $this)));
 	}
 	
 	public function select_page($order='id', $page_var='p', $perpage=50)

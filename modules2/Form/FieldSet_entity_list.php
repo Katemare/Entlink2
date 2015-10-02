@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 // STUB: пока поддерживает только редактирование фиксированного списка.
 
 class FieldSet_entity_list extends FieldSet_list
@@ -28,7 +29,7 @@ class FieldSet_entity_list extends FieldSet_list
 		}
 		
 		$process=new Process_collection_absolute($tasks);
-		return $this->sign_report(new Report_task($process));
+		return $this->sign_report(new \Report_task($process));
 	}
 	
 	public function fill_defaults($codes=null, $rewrite=true)
@@ -45,10 +46,10 @@ class FieldSet_entity_list extends FieldSet_list
 		// STUB! пока ввод базового и нового поля не нужны.
 		/*
 		$result=parent::fill_defaults($codes, $rewrite);
-		if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+		if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
 		*/
 		
-		if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+		if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 	}
 	
 	public function set_by_linkset($linkset)
@@ -105,22 +106,22 @@ class Task_fieldset_entity_list_defaults extends Task_for_fieldset
 			{
 				$value=$this->inputset->produce_value($x);
 				$result=$value->fill_defaults(null, $this->rewrite);
-				if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+				if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
 			}
-			if (empty($tasks)) return $this->sign_report(new Report_success());
-			return $this->sign_report(new Report_tasks($tasks));
+			if (empty($tasks)) return $this->sign_report(new \Report_success());
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 	}
 	
 	public function create_select()
 	{
 		$this->list_model=$this->inputset->value_model();
-		$this->select=Selector::from_model($this->list_model);
-		return $this->sign_report(new Report_task($this->select));
+		$this->select=Select::from_model($this->list_model, $this->inputset);
+		return $this->sign_report(new \Report_task($this->select));
 	}
 }
 ?>

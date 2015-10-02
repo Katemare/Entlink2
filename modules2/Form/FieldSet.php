@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Form;
 
-class FieldSet extends InputSet_complex implements Templater, Template_context
+class FieldSet extends \Pokeliga\Data\InputSet_complex implements \Pokeliga\Template\Templater, \Pokeliga\Template\Template_context
 {
-	use Prototyper, Report_spawner;
+	use \Pokeliga\Entlink\Shorthand;
 
 	const
 		SOURCE_DEFAULT=InputSet::SOURCE_POST,
@@ -18,11 +19,11 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		XML_EXPORT=false;
 
 	static
-		$basic_model=null,
-		$prototype_class_base='FieldSet_';
+		$basic_model=null;
 		
 	public
 		$form=null,
+		$master=null,
 		$super_model=[], // модель, которая поставляется формой. в отличие от $model, которая устанавливается классом. содержит, например, префикс.
 		$prefix=null,
 		$code=null,
@@ -42,14 +43,14 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 	
 	public static function for_fieldset($type_keyword, $fieldset, $code)
 	{
-		$element=static::from_prototype($type_keyword);
+		$element=static::from_shorthand($type_keyword);
 		$element->setup_from_fieldset($fieldset, $code);
 		return $element;
 	}
 	
 	public static function standalone($type_keyword, $super_model=[], $source_setting=null)
 	{
-		$element=static::from_prototype($type_keyword);
+		$element=static::from_shorthand($type_keyword);
 		$element->setup_standalone($super_model, $source_setting);
 		return $element;
 	}
@@ -107,10 +108,10 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 	
 	public static function create_for_xml()
 	{
-		if (!static::xml_exportable()) return $this->sign_report(new Report_impossible('not_exportable'));
+		if (!static::xml_exportable()) return $this->sign_report(new \Report_impossible('not_exportable'));
 		
 		$prefix=InputSet::instant_fill('prefix', 'keyword');
-		if ($prefix instanceof Report_impossible) $prefix='';
+		if ($prefix instanceof \Report_impossible) $prefix='';
 		$super_model=['prefix'=>$prefix];
 		
 		$element=static::create_for_display($super_model);
@@ -127,7 +128,11 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		$this->mode=$fieldset->mode;
 		$this->super_model=$fieldset->model($code);
 		
-		if ($fieldset instanceof Form) $this->form=$fieldset;
+			$this->master=$fieldset;
+		if ($fieldset instanceof Form)
+		{
+			$this->form=$fieldset;
+		}
 		else
 		{
 			$this->form=$fieldset->form;
@@ -164,7 +169,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		if ($field===false)
 		{
 			$field=InputSet::instant_fill('field', 'keyword');
-			if ($field instanceof Report_impossible) $field=null;
+			if ($field instanceof \Report_impossible) $field=null;
 		}
 		if ($field===null) return $this->main_template();
 		else return $this->template($field);
@@ -226,12 +231,14 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		if ($code===static::PREFIX_CODE) return $this->prefix();
 		
 		$value=$this->produce_value_soft($code);
-		if ($value instanceof Report) return;
+		if ($value instanceof \Report) return;
 		if ($value instanceof FieldSet) return $value->main_template($line);
 	
 		if (!empty($line['raw'])) return $value->template(null, $line);
-		if (!$value->in_value_model('template')) die ('NO FIELD TEMPLATE: '.$code);
-		$template=Template_field::for_fieldset($value->value_model_now('template'), $this, $code, $line);
+		
+		if ($value->in_value_model('template')) $template_code=$value->value_model_now('template');
+		else $template_code=$value::DEFAULT_FIELD_TEMPLATE;
+		$template=Template_field::for_fieldset($template_code, $this, $value, $line);
 		return $template;
 	}
 
@@ -240,7 +247,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		$this->mode=static::MODE_DISPLAY;
 		$class=$this->main_template_class;
 		$template=$class::with_line($line);
-		if ($template instanceof Template_from_db) $template->db_key=$this->template_db_key;
+		if ($template instanceof \Pokeliga\Template\Template_from_db) $template->db_key=$this->template_db_key;
 		if ($template instanceof Template_requies_fieldset) $template->set_fieldset($this);
 		if ($template instanceof Template_fieldset) $template->main=true;
 		$template->context=$this->make_context();
@@ -315,11 +322,11 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 	{
 		$value=$this->produce_value($value);
 		
-		if ($value instanceof FieldSet_sub) return $this->sign_report(new Report_task($value->process_task()));
+		if ($value instanceof FieldSet_sub) return $this->sign_report(new \Report_task($value->process_task()));
 		elseif ($value instanceof FieldSet) return $value->input($source);
 		
 		$result=parent::input_value($value, $source);
-		if ($result instanceof Report) return $result;
+		if ($result instanceof \Report) return $result;
 		
 		if ($value->in_value_model('template'))
 		{
@@ -338,7 +345,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 	public function process_valid()
 	{
 		$task=$this->create_valid_processor();
-		if ($task instanceof Report) return $task;
+		if ($task instanceof \Report) return $task;
 		$this->process_success=&$task->resolution;
 		
 		if ($this->erase_session_on_success)
@@ -349,13 +356,13 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 				'complete'
 			);
 		}
-		return $this->sign_report(new Report_task($task));
+		return $this->sign_report(new \Report_task($task));
 	}
 	
 	public function create_valid_processor()
 	{
 		$class=$this->process_valid_class;
-		if (empty($class)) { vdump($this); die ('UNPROCESSABLE FORM'); }
+		if (empty($class)) { vdump($this); debug_dump(); die ('UNPROCESSABLE FORM'); }
 		$task=$class::for_fieldset($this);
 		return $task;
 	}
@@ -402,7 +409,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 			$this->input_value($value);
 			if (!$value->has_state(Value::STATE_FILLED)) continue;
 			$content=$value->content();
-			if ($content instanceof Report_impossible) continue;
+			if ($content instanceof \Report_impossible) continue;
 			$container[$code]=$content;
 		}
 		
@@ -443,7 +450,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 	
 	public function read_session()
 	{
-		if (!$this->has_session_data()) return $this->sign_report(new Report_impossible('session_empty'));
+		if (!$this->has_session_data()) return $this->sign_report(new \Report_impossible('session_empty'));
 		$name=$this->session_name();
 		global $_SESSION;
 		return $_SESSION[$name];	
@@ -462,7 +469,7 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		foreach ($container as $code=>$content)
 		{
 			$value=$this->produce_value_soft($code);
-			if ($value instanceof Report_impossible) continue;
+			if ($value instanceof \Report_impossible) continue;
 			if ($value instanceof FieldSet)
 			{
 				$value->fill_from_session(false, $content);
@@ -511,10 +518,10 @@ class FieldSet extends InputSet_complex implements Templater, Template_context
 		{
 			$value=$this->produce_value($code);
 			$report=$value->fill_defaults(null, $rewrite);
-			if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+			if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 		}
 		
-		if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+		if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 	}
 }
 
@@ -553,9 +560,9 @@ class Task_for_formfield_process extends Task_for_fieldset
 		if ($this->step===static::STEP_INPUT)
 		{
 			$report=$this->inputset->input(null, $this->source);
-			if ( ($report instanceof Report_success) || ($report===true) ) return $this->advance_step();
-			elseif ($report instanceof Report_impossible) $this->advance_step(static::STEP_INVALID_INPUT);
-			elseif ($report instanceof Report_task) $this->input_task=$report->task;
+			if ( ($report instanceof \Report_success) || ($report===true) ) return $this->advance_step();
+			elseif ($report instanceof \Report_impossible) $this->advance_step(static::STEP_INVALID_INPUT);
+			elseif ($report instanceof \Report_task) $this->input_task=$report->task;
 			return $report;
 		}
 		elseif ($this->step===static::STEP_PROCESS)
@@ -568,13 +575,18 @@ class Task_for_formfield_process extends Task_for_fieldset
 
 			$report=$this->inputset->process_valid();
 			
-			if ($report instanceof Report_task)
+			if ($report instanceof \Report_task)
 			{
 				$this->process_task=$report->task;
 				return $report;
 			}
-			elseif ($report instanceof Report_success) return $report;
-			elseif ($report instanceof Report_impossible)
+			elseif ($report instanceof \Pokeliga\Task\Task)
+			{
+				$this->process_task=$report;
+				return $this->sign_report(new \Report_task($this->process_task));
+			}
+			elseif ($report instanceof \Report_success) return $report;
+			elseif ($report instanceof \Report_impossible)
 			{
 				$this->errors=$report->errors;
 				return $this->advance_step(static::STEP_INVALID_PROCESS);
@@ -593,21 +605,21 @@ class Task_for_formfield_process extends Task_for_fieldset
 		elseif ($this->step===static::STEP_INVALID_INPUT)
 		{
 			$result=$this->inputset->input_is_invalid();
-			if ($result instanceof Report_task) $this->final_task=$result->task;
-			elseif ($result===null) return $this->sign_report(new Report_impossible($this->errors));
+			if ($result instanceof \Report_task) $this->final_task=$result->task;
+			elseif ($result===null) return $this->sign_report(new \Report_impossible($this->errors));
 			return $result;
 		}
 		elseif ($this->step===static::STEP_INVALID_PROCESS)
 		{
 			$result=$this->inputset->process_is_invalid();
-			if ($result instanceof Report_task) $this->final_task=$result->task;
-			elseif ($result===null) return $this->sign_report(new Report_impossible($this->errors));
+			if ($result instanceof \Report_task) $this->final_task=$result->task;
+			elseif ($result===null) return $this->sign_report(new \Report_impossible($this->errors));
 			return $result;
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
 			if ($this->final_task!==null) return $this->final_task->report();
-			return $this->sign_report(new Report_impossible('invalid_fieldset'));
+			return $this->sign_report(new \Report_impossible('invalid_fieldset'));
 		}
 	}
 	
@@ -637,7 +649,7 @@ abstract class FieldSet_sub extends FieldSet implements ValueContent
 	public function process_valid()
 	{
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($this->pack_input($this->input_fields)));
+		return $this->sign_report(new \Report_resolution($this->pack_input($this->input_fields)));
 	}
 	
 	public function content()
@@ -697,7 +709,7 @@ class Template_fieldset extends Template_from_db implements Template_requies_fie
 			if (!$this->main) return $this->advance_step();
 			$this->field->page=$this->page; // STUB: в будущем не понадобится, потому что все данные должны поступать через командную строку, которая уже может сама обращаться к странице.	
 			$result=$this->field->prepare_display();
-			if ($result instanceof Report_tasks) return $result;
+			if ($result instanceof \Report_tasks) return $result;
 			return $this->advance_step();
 		}
 		else return parent::run_step();

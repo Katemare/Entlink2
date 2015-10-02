@@ -1,11 +1,10 @@
 <?
+namespace Pokeliga\Entity;
 
 // 'basic' - аспект, необходимый для показа базовой информации о сущности на разных страницах. Если сущность просто упоминается, то в идеале basic - единственный требуемый аспект.
 
-class Aspect implements Templater
-{	
-	use Prototyper_bare, Report_spawner, Page_spawner;
-
+class Aspect implements \Pokeliga\Template\Templater
+{
 	const
 		MODEL_MODIFIED=false,
 		MODEL_REDECLARED=false,
@@ -13,6 +12,10 @@ class Aspect implements Templater
 		STANDARD_PAGE_CLASS='Page_view_from_db';
 	
 	static
+		$static_group_default=
+		[
+			'init'=>false
+		],
 		$init=false,
 		$common_model=[],
 		// $modify_model=[], // этот параметр должен быть у унаследованных аспектов, например, как аспект Pokemon_owned унаследован от Pokemon_disposition. считывается только параметр последнего класса в цепочке наследования, у которого был объявлен этот параметр.
@@ -33,8 +36,9 @@ class Aspect implements Templater
 	
 	public static function init()
 	{
-		if (static::$init) return;
-				
+		$static_data=&static::get_static_group(static::$static_group_default);
+		if ($static_data['init']) return; // вызывается таким образом для того, чтобы задать статическую группу.
+		
 		$parent_class=get_parent_class(get_called_class());
 		if (static::$common_model===null) // значит, модель наследуется с изменениями у родительского класса.
 		{	
@@ -47,28 +51,15 @@ class Aspect implements Templater
 			{
 				foreach (static::$modify_model as $code=>$data)
 				{
-					if (array_key_exists($code, static::$common_model))
-					{
-						if (array_key_exists('table', static::$common_model[$code])) $data['table']=static::$common_model[$code]['table'];
-					}
-					else
-					{
-						if (array_key_exists('table', $data)) $data['table']=static::$default_table;
-					}
 					static::$common_model[$code]=$data;
 					static::init_id($code); // само разбирает, нужно ли добавлять поле сущности.
 				}
 			}
 		}
-		elseif ( ($parent_class==='Aspect') || (static::MODEL_REDECLARED===get_called_class()) )
+		elseif ( $parent_class==='Pokeliga\Entity\Aspect' or static::MODEL_REDECLARED===get_called_class() )
 		{
 			foreach (static::$common_model as $code=>&$data)
 			{
-				if ( (!array_key_exists('keeper', $data)) && (!array_key_exists('table', $data)) ) // STUB: предполагает по умолчанию Keeper_db
-				{
-					$data['table']=static::$default_table;
-				}
-			
 				static::init_id($code, true); // само разбирает, нужно ли добавлять поле сущности.
 			}
 			
@@ -77,19 +68,26 @@ class Aspect implements Templater
 				if (!array_key_exists('page_action', $data)) $data['page_action']=$code;
 			}
 			
-			if ( (static::$basic) && (!array_key_exists('id', static::$common_model)) )
+			if ( static::$basic and !array_key_exists('id', static::$common_model) )
 			{
 				static::$common_model['id']=
 				[
 					'type'=>'own_id',
-					'table'=>static::$default_table
-					// кипер и таблица берутся согласно правилам по умолчанию.
 				];
 			}
 		}
-		else { xdebug_print_function_stack(); vdump(get_called_class()); die('BAD ASPECT MODEL'); }
+		else { vdump(get_called_class()); die('BAD ASPECT MODEL'); }
 		
-		static::$init=true;
+		$static_data['init']=true;
+	}
+	
+	public static function init_id($code, $do_import=false)
+	{
+		$id_model=static::$common_model[$code];
+		$value_type_class=\Pokeliga\Data\ValueType::get_shorthand_class($id_model['type']);
+		
+		if ($do_import and is_a($value_type_class, '\Pokeliga\Entity\Value_links_entity', true) and array_key_exists('import', $id_model) )
+				static::init_import($code, $id_model['import']);
 	}
 	
 	public static function init_import($source_entity, $import)
@@ -110,38 +108,9 @@ class Aspect implements Templater
 		}	
 	}
 	
-	public static function init_id($code, $do_import=false)
-	{
-		$id_model=static::$common_model[$code];
-		$value_class=Value::compose_prototype_class($id_model['type']);
-		
-		if (is_a($value_class, 'Value_links_entity', true))
-		{
-			// FIX! Сущности не всегда связываются через айди, потому что бывают виртуальные или пока не сохранённые сущности. Следовательно, главное в этом типе данных должно быть не то, что это айди, а то, что это сущности (или следует использовать не айди из БД, а внутренний айди во время составления страницы).
-			
-			$entity_code=$code.'_entity';
-			static::$common_model[$entity_code]=
-			[
-				'type'=>'entity',
-				'id_source'=>$code,
-				'pathway_track'=>$code,
-				'dependancies'=>[$code]
-			];
-			if (!empty($id_model['null'])) static::$common_model[$entity_code]['null']=true;
-			if (array_key_exists('id_group', static::$common_model[$code]))
-				static::$common_model[$entity_code]['id_group']=static::$common_model[$code]['id_group'];
-			
-			if ( ($do_import) && (array_key_exists('import', $id_model)) ) static::init_import($entity_code, $id_model['import']);
-		}
-		elseif (is_a($value_class, 'Value_contains_entity', true))
-		{
-			if ( ($do_import) && (array_key_exists('import', $id_model)) ) static::init_import($code, $id_model['import']);
-		}
-	}
-	
 	public static function for_entity($class, $entity)
 	{
-		$aspect=static::from_prototype($class);
+		$aspect=new $class;
 		$aspect->entity=$entity;
 		return $aspect;
 	}
@@ -151,16 +120,22 @@ class Aspect implements Templater
 		return $this->entity->pool;
 	}
 	
+	public function default_table()
+	{
+		if (!empty(static::$default_table)) return static::$default_table;
+		return $this->entity->type->default_table();
+	}
+	
 	public function template($name, $line=[])
 	{
 		if ($name==='id_group') return $this->entity->id_group;
-		if (!array_key_exists($name, static::$templates)) return $this->sign_report(new Report_impossible('no_template'));
+		if (!array_key_exists($name, static::$templates)) return $this->sign_report(new \Report_impossible('no_template'));
 		
 		$do_setup=true; // если не инициировать эту переменную, то она инициируется при попадании в метод нулём.
 		$template=$this->make_complex_template($name, $line, $do_setup);
 		if ($template!==null)
 		{
-			if ( ($do_setup) && ($template instanceof Template) ) $this->setup_template($template);
+			if ( ($do_setup) && ($template instanceof \Pokeliga\Template\Template) ) $this->setup_template($template);
 			return $template;
 		}
 		
@@ -221,7 +196,7 @@ class Aspect implements Templater
 		return $this->task(...$args); // отличаются тем, как их обрабатывает EntityType
 	}
 	
-	// возвращает либо готовый результат (из констант EntityType - RIGHT_FINAL_ALLOW, RIGHT_FINAL_DENY, RIGHT_WEAK_ALLOW, RIGHT_WEAK_DENY, RIGHT_NO_CHANGE), либо Report_impossible, либо Report_task с задачей, разрешением которой станет искомая константа.
+	// возвращает либо готовый результат (из констант EntityType - RIGHT_FINAL_ALLOW, RIGHT_FINAL_DENY, RIGHT_WEAK_ALLOW, RIGHT_WEAK_DENY, RIGHT_NO_CHANGE), либо \Report_impossible, либо \Report_task с задачей, разрешением которой станет искомая константа.
 	public function supply_right($right, $user, ...$more_args)
 	{
 		// if (!array_key_exists($right, static::$rights)) return EntityType::RIGHT_NO_CHANGE;
@@ -234,7 +209,7 @@ class Aspect implements Templater
 		{
 			$class=$right_data;
 			$task=$class::for_right(func_get_args(), $this);
-			return $this->sign_report(new Report_task($task));
+			return $this->sign_report(new \Report_task($task));
 		}
 		if (!is_array($right_data)) die('BAD RIGHT DATA');
 		
@@ -243,13 +218,13 @@ class Aspect implements Templater
 		{
 			if (empty($user)) return EntityType::RIGHT_WEAK_DENY;
 			$task=$user->task_request('check_right', ...array_values($right_data));
-			return $task; // Report
+			return $task; // \Report
 		}
 		
 		if (array_key_exists('task', $right_data)) $class=$right_data['task'];
 		else $class='Task_calc_aspect_right'; // запрашивает необходимые поля, а затем вызывает has_right() аспекта с теми же аргументами.
 		$task=$class::from_data($right_data, func_get_args(), $this);
-		return $this->sign_report(new Report_task($task));
+		return $this->sign_report(new \Report_task($task));
 	}
 	
 	public function page($action, $parts=[], $route=[])

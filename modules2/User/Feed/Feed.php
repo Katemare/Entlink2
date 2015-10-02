@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // эта сущность представляет собой подписку, заключающую в себе правила пополнения соответствующей ленты записями. например, подписка на новые работы фанарта, на любые работы с данной меткой, на случайную популярную работу в пределах 3 месяцев каждые 5 минут... многие пользователи могут быть подписаны на одну подписку, чтобы её содержимое кэшировалось и обновлялось по необходимости. сама подписка может быть создана заранее админами или по запросу пользователем. неиспользуемые подписки не обновляются.
 
 class Feed extends EntityType
@@ -48,7 +50,7 @@ class Feed_basic extends Aspect
 			'post_pool'=>
 			[
 				// конкретный подраздел или все.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'PostPool',
 				'null'=>true,
 				'auto_valid'=>'null',
@@ -57,7 +59,7 @@ class Feed_basic extends Aspect
 			'section'=>
 			[
 				// конкретный раздел или все.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'SiteSection',
 				'null'=>true,
 				'auto_valid'=>'null',
@@ -66,7 +68,7 @@ class Feed_basic extends Aspect
 			'tag'=>
 			[
 				// с конкретной меткой или все.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Tag',
 				'null'=>true,
 				'auto_valid'=>'null',
@@ -91,7 +93,7 @@ class Feed_basic extends Aspect
 			'author'=>
 			[
 				// конкретного автора или все.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User',
 				'null'=>true,
 				'auto_valid'=>'null',
@@ -99,7 +101,7 @@ class Feed_basic extends Aspect
 			],
 			'collection'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Collection',
 				'null'=>true,
 				'auto_valid'=>'null',

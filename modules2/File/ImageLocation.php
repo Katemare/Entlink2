@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 
 class ImageLocation extends EntityType
 {
@@ -24,7 +25,7 @@ class ImageLocation_basic extends Aspect
 		[
 			'image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'import'=>['width', 'height']
 			],
@@ -76,7 +77,7 @@ abstract class ImageLocation_type extends Aspect
 			],
 			'parent_fragment'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'ImageLocation',
 				'const'=>null
 			],
@@ -110,7 +111,7 @@ class Task_imagelocation_determine_details_aspect extends Task_determine_aspect
 	public function progress()
 	{
 		$type=$this->entity->request('location_type');
-		if ($type instanceof Report_resolution)
+		if ($type instanceof \Report_resolution)
 		{
 			$type=$type->resolution;
 			$resolution=null;
@@ -124,8 +125,8 @@ class Task_imagelocation_determine_details_aspect extends Task_determine_aspect
 				$this->finish();
 			}
 		}
-		elseif ($type instanceof Report_tasks) $type->register_dependancies_for($this);
-		elseif ($type instanceof Report_impossible) $this->impossible('no_type');
+		elseif ($type instanceof \Report_tasks) $type->register_dependancies_for($this);
+		elseif ($type instanceof \Report_impossible) $this->impossible('no_type');
 	}
 }
 
@@ -148,7 +149,7 @@ class ImageLocation_point extends ImageLocation_type
 			],
 			'parent_fragment'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'ImageLocation',
 				'null'=>true,
 				'default'=>null,

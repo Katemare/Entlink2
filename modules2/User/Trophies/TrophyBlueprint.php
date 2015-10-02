@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 class TrophyBlueprint extends EntityType
 {
@@ -36,12 +37,12 @@ class TrophyBlueprint_basic extends Aspect
 		[
 			'icon'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image'
 			],
 			'image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'keeper'=>false,
 				'auto'=>'Fill_entity_proceducal_value_with_callback',
@@ -94,7 +95,7 @@ class TrophyBlueprint_basic extends Aspect
 	public function image()
 	{
 		$cover=$this->entity->value('cover_image');
-		if ( (!empty($cover)) && (!($cover instanceof Report_impossible)) ) return $cover;
+		if ( (!empty($cover)) && (!($cover instanceof \Report_impossible)) ) return $cover;
 		return $this->entity->value('icon');
 	}
 }
@@ -147,13 +148,13 @@ class TrophyBlueprint_complex extends Aspect
 			$tasks=[];
 			
 			$report=$this->entity->request('subtrophies');
-			if ($report instanceof Report_impossible) return $report;
-			if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+			if ($report instanceof \Report_impossible) return $report;
+			if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 			else $subtrophies=$report->resolution->values;
 			
 			$report=$this->entity->request('display_type');
-			if ($report instanceof Report_impossible) return $report;
-			if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+			if ($report instanceof \Report_impossible) return $report;
+			if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 			else $display_type=$report->resolution;
 			
 			if (!empty($tasks))
@@ -252,7 +253,7 @@ class Task_trophy_blueprint_determine_complex_aspect extends Task_determine_aspe
 	public function progress()
 	{
 		$type=$this->entity->request('trophy_type');
-		if ($type instanceof Report_resolution)
+		if ($type instanceof \Report_resolution)
 		{
 			$type=$type->resolution;
 			$resolution=null;
@@ -266,8 +267,8 @@ class Task_trophy_blueprint_determine_complex_aspect extends Task_determine_aspe
 				$this->finish();
 			}
 		}
-		elseif ($type instanceof Report_tasks) $type->register_dependancies_for($this);
-		elseif ($type instanceof Report_impossible) $this->impossible('no_type');
+		elseif ($type instanceof \Report_tasks) $type->register_dependancies_for($this);
+		elseif ($type instanceof \Report_impossible) $this->impossible('no_type');
 	}
 }
 

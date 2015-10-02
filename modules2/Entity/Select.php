@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Entity;
 
 interface Select_provides_ticket
 {
@@ -6,12 +7,9 @@ interface Select_provides_ticket
 }
 
 // наполняет значение класса Value_linkset
-abstract class Selector extends Filler_for_entity implements Templater
+abstract class Select extends Filler_for_entity implements \Pokeliga\Template\Templater
 {
-	use Prototyper;
-	
-	static
-		$prototype_class_base='Select_';
+	use \Pokeliga\Entlink\Shorthand;
 	
 	public
 		$query_convertable=false, // означает, что выборщик отрабатывает на основе одного явного запроса без дополнительной логики и может быть сведён к этому запросу.
@@ -19,16 +17,16 @@ abstract class Selector extends Filler_for_entity implements Templater
 	
 	public static function for_value($value)
 	{
-		if (get_called_class()==='Selector')
+		if (get_called_class()===__CLASS__)
 		{
 			if (!$value->in_value_model('select')) { vdump($value); die ('NO LINKSET SELECTOR'); }
 			$keyword=$value->value_model_now('select');
-			$selector=static::from_prototype($keyword);
+			$selector=static::from_shorthand($keyword);
 		}
 		else $selector=new static();
 		$selector->set_value($value);
 		
-		if ( ($value->in_value_model('per_page')) && (!($selector instanceof Paged)) )
+		if ( ($value->in_value_model('per_page')) && (!($selector instanceof \Pokeliga\Template\Paged)) )
 		{
 			$value->reset();
 			if ($value->in_value_model('page_var')) $page_var=$value->value_model_now('page_var'); else $page_var='p';
@@ -54,18 +52,19 @@ abstract class Selector extends Filler_for_entity implements Templater
 		$this->setup();
 	}
 	
-	public static function from_model($model)
+	public static function from_model($model, $master=null)
 	{
 		if (!is_array($model)) $model=['id_group'=>$model];
 		$model['type']='linkset';
-		$value=Value::standalone($model);
+		$value=\Pokeliga\Data\Value::standalone($model);
+		$value->master=$master;
 		$select=static::for_value($value);
 		return $select;
 	}
 	
 	public static function standalone($id_group=null)
 	{
-		if (($class=get_called_class())==='Selector') die('BAD STANDALONE SELECTOR');
+		if (($class=get_called_class())===__CLASS__) die('BAD STANDALONE SELECTOR');
 		$code=substr($class, 7);
 		$model=['select'=>$code, 'id_group'=>$id_group];
 		return static::from_model($model);
@@ -73,9 +72,9 @@ abstract class Selector extends Filler_for_entity implements Templater
 	
 	public static function blank($keyword=null)
 	{
-		if ( ($keyword===null) && (get_called_class()==='Selector') ) die ('NO SELECTOR KEYWORD');
+		if ( ($keyword===null) && (get_called_class()===__CLASS__) ) die ('NO SELECTOR KEYWORD');
 		if ($keyword===null) return new static();
-		return $selector=static::from_prototype($keyword);
+		return $selector=static::from_shorthand($keyword);
 	}
 	
 	public static function derieved($original_select, ...$ignore)
@@ -194,8 +193,7 @@ abstract class Selector extends Filler_for_entity implements Templater
 	// возвращает Селектор, возвращающий указанное число элементов из начала списка. нужен, например, для поиска.
 	public abstract function select_limited($limit=20, $order='id');
 	
-	// возвращает Селектор, выбирающий элементы по строковому поиску. как распорядиться строкой поиска - решает типизатор, указанный в id_group (к неме Селектор обращается запросами).
-	// ВАЖНО: в отличие от других субселекторов, этот может быть применён _до_ дополнительных проверок сложного селектора. Именно реализацией этого метода отличается Select_complext от Select_twopart (WIP)
+	// возвращает Селектор, выбирающий элементы по поиску - дополнительным условиям. принимает либо строку (как распорядиться строкой поиска - решает типизатор, если он указан в id_group), либо массив условий.
 	public abstract function select_search($search);
 	
 	// возвращает Селектор, выбирающий случайные элементы из набора в заданном количестве.
@@ -213,18 +211,18 @@ abstract class Selector extends Filler_for_entity implements Templater
 	// этот метод должен возвращать запрос (Request), который получает поля из основной таблицы того типа сущностей, к которому относится выборщик. это необходимо для последующего преобразования запроса. когда выборщик работает самостоятельно, этого не требуется и можно, например, получить и заполнить список тренеров по полю "owner" у набора покемонов.
 	public function create_standard_request()
 	{
-		return $this->sign_report(new Report_impossible('not_query_convertable'));
+		return $this->sign_report(new \Report_impossible('not_query_convertable'));
 	}
 	
 	public function produce_range_query()
 	{
-		return $this->sign_report(new Report_impossible('not_query_convertable'));
+		return $this->sign_report(new \Report_impossible('not_query_convertable'));
 	}
 }
 
-abstract class Select_by_single_request extends Selector implements Select_provides_ticket
+abstract class Select_by_single_request extends Select implements Select_provides_ticket
 {
-	use Task_processes_request;
+	use \Pokeliga\Retriever\Task_processes_request;
 	
 	public
 		$id_key='id',
@@ -340,7 +338,7 @@ class Select_by_ticket extends Select_by_single_request
 	public function create_request()
 	{
 		$ticket=$this->value_model_now('ticket');
-		if (!($ticket instanceof RequestTicket)) die('NO TICKET');
+		if (!($ticket instanceof \Pokeliga\Retriever\RequestTicket)) die('NO TICKET');
 		return clone $ticket;
 	}
 }
@@ -416,7 +414,7 @@ class Select_limited_from_request extends Select_ordered_request
 	}
 }
 
-class Select_page_from_request extends Select_ordered_request implements Paged
+class Select_page_from_request extends Select_ordered_request implements \Pokeliga\Template\Paged
 {
 	public
 		$page=1,
@@ -448,11 +446,11 @@ class Select_search_from_request extends Select_by_single_request
 */
 
 // берёт за основу потомка Select_by_single_request и модифицирует его выборку.
-class Select_filter extends Selector
+class Select_filter extends Select
 {
-	use Task_steps, Select_complex
+	use \Pokeliga\Task\Task_steps, Select_complex
 	{
-		Task_steps::dependancies_resolved			as std_dependancies_resolved;
+		\Pokeliga\Task\Task_steps::dependancies_resolved			as std_dependancies_resolved;
 		Select_complex::select_modified_by_calls	as complex_select_modified_by_calls;
 		// Select_complex::select_page				as complex_select_page;
 		Select_complex::select_limited				as complex_select_limited;
@@ -534,7 +532,7 @@ class Select_filter extends Selector
 				return $this->advance_step(); // базовый выборщик нужен только как поставщик запроса. иногда запрос уже известен.
 			}
 			$base=$this->get_base_selector();
-			if (!($base instanceof Select_provides_ticket)) return $this->sign_report(new Report_impossible('bad_base_selector'));
+			if (!($base instanceof Select_provides_ticket)) return $this->sign_report(new \Report_impossible('bad_base_selector'));
 			$this->request=$base->create_request();
 			$this->id_key=$base->id_key();
 			return $this->advance_step();
@@ -552,19 +550,19 @@ class Select_filter extends Selector
 			elseif ($this->order!==false) $this->request=new RequestTicket('Request_ordered', [$this->request, $this->order]);
 			
 			$report=$this->request->get_data_set();
-			if ($report instanceof Report) return $report;
+			if ($report instanceof \Report) return $report;
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_GATHER_CANDIDATES)
 		{
 			$data=$this->request->get_data_set();
-			if ($data instanceof Report_impossible) return $data;
-			if ($data instanceof Report_tasks) return $this->sign_report(new Report_impossible('bad_request_ticket'));
-			if (empty($data)) return $this->sign_report(new Report_resolution($this->empty_linkset()));
+			if ($data instanceof \Report_impossible) return $data;
+			if ($data instanceof \Report_tasks) return $this->sign_report(new \Report_impossible('bad_request_ticket'));
+			if (empty($data)) return $this->sign_report(new \Report_resolution($this->empty_linkset()));
 			
 			$report=$this->gather_candidates_from_data($data);
-			if ($report instanceof Report) return $report;
-			if (empty($this->candidates)) return $this->sign_report(new Report_resolution($this->empty_linkset()));
+			if ($report instanceof \Report) return $report;
+			if (empty($this->candidates)) return $this->sign_report(new \Report_resolution($this->empty_linkset()));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_FILTER)
@@ -578,7 +576,7 @@ class Select_filter extends Selector
 					else $this->good[$order]=$candidate;
 				}
 				elseif ($result===false) $this->bad[$order]=$candidate;
-				elseif ($result instanceof Report_task)
+				elseif ($result instanceof \Report_task)
 				{
 					if ($this->resolved_before===null) $this->resolved_before=$order; // кандидаты рассматриваются по очереди.
 					$task=$result->task;
@@ -588,24 +586,24 @@ class Select_filter extends Selector
 					$this->maybe_call[$order]=$call;
 					$task->add_call($call, 'complete');
 				}
-				elseif ($result instanceof Report_tasks) die ('BAD FILTER REPORT');
-				elseif ($result instanceof Report_impossible) return $result;
+				elseif ($result instanceof \Report_tasks) die ('BAD FILTER REPORT');
+				elseif ($result instanceof \Report_impossible) return $result;
 				if ( ($this->limit!==false) && (count($this->good)==$this->limit) && (empty($this->maybe)) ) return $this->advance_step();
 			}
 			if (empty($this->maybe)) return $this->advance_step();
 			if ($this->limit!==false)
 			{
 				$process=new Process_prioritized($this->maybe_tasks, $this->limit*(1+static::BLOCK_BLEED));
-				return $this->sign_report(new Report_task($process));
+				return $this->sign_report(new \Report_task($process));
 			}
-			else return $this->sign_report(new Report_tasks($this->maybe_tasks));
+			else return $this->sign_report(new \Report_tasks($this->maybe_tasks));
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
-			if (empty($this->good)) return $this->sign_report(new Report_resolution($this->empty_linkset()));
+			if (empty($this->good)) return $this->sign_report(new \Report_resolution($this->empty_linkset()));
 			ksort($this->good);
 			if ($this->limit!==false) $this->good=array_slice($this->good, 0, $this->limit); // эта операция не сохраняет ключи, но они и не нужны, когда результат получен.
-			return $this->sign_report(new Report_resolution($this->linkset_from_entities($this->good)));
+			return $this->sign_report(new \Report_resolution($this->linkset_from_entities($this->good)));
 		}
 	}
 	
@@ -617,7 +615,7 @@ class Select_filter extends Selector
 	public function gather_candidates_from_data($data)
 	{
 		$key=$this->id_key();
-		if (empty($key)) return $this->sign_report(new Report_impossible('no_id_key'));
+		if (empty($key)) return $this->sign_report(new \Report_impossible('no_id_key'));
 		$type=$this->id_group();
 		
 		foreach ($data as $row)
@@ -815,9 +813,31 @@ class Select_by_field extends Select_by_single_request
 		return $this->additional_conditions;
 	}
 	
+	public function fulfills_conditions($conditions)
+	{
+		if (empty($conditions)) return true;
+		$current_conditions=$this->additional_conditions();
+		if (empty($current_conditions)) return false;
+		
+		foreach ($conditions as $condition)
+		{
+			if (!in_array($condition, $current_conditions)) return false;
+		}
+		return true;
+	}
+	
+	public function append_conditions($conditions)
+	{
+		if ($this->fulfills_conditions($conditions)) return false;
+		$old_conditions=(array)$this->additional_conditions();
+		$new_conditions=array_unique(array_merge($old_conditions, $conditions));
+		$this->additional_conditions=$new_conditions;
+		return true;
+	}
+	
 	public function apply_data($data)
 	{
-		if ( (is_array($this->content())) && (!$this->get_request()->by_unique_field()) && (!($data instanceof Report)) )
+		if ( (is_array($this->content())) && (!$this->get_request()->by_unique_field()) && (!($data instanceof \Report)) )
 		{
 			$merge=[];
 			foreach ($data as $value=>$array)
@@ -833,6 +853,16 @@ class Select_by_field extends Select_by_single_request
 	public function create_request()
 	{
 		return new RequestTicket('Request_by_field', [$this->table(), $this->field(), $this->additional_conditions()], [$this->content()]);
+	}
+	
+	public function select_search($search)
+	{
+		if (!is_array($search)) die('IMPLEMENTED YET: string search');
+		if ($this->fulfills_conditions($search)) return $this;
+		$select=static::derieved();
+		$appended=$select->append_conditions($search);
+		if ($appended) return $select;
+		else return $this;
 	}
 }
 

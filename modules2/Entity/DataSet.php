@@ -1,10 +1,15 @@
 <?
-load_debug_concern('Entity', 'DataSet');
+namespace Pokeliga\Entity;
 
-class DataSet extends ValueSet implements Templater
+load_debug_concern(__DIR__, 'DataSet');
+
+class DataSet extends \Pokeliga\Data\ValueSet implements \Pokeliga\Template\Templater
 {
 	use Logger_DataSet;
 
+	const
+		VALUE_FACTORY='\Pokeliga\Entity\Value_of_entity';
+	
 	public
 		$entity,
 		$default_keeper='db';
@@ -42,12 +47,12 @@ class DataSet extends ValueSet implements Templater
 		parent::before_value_set($value, $content, $source);
 		
 		$entity=$value->master->entity;
-		if ( ($value->has_state(Value::STATE_FILLED)) && ($entity->pool->read_only()) /* OPTIM: возможно, это нужно как-то сократить. */ )
+		if ( ($value->has_state($value::STATE_FILLED)) && ($entity->pool->read_only()) /* OPTIM: возможно, это нужно как-то сократить. */ )
 			die ('SETTING READ ONLY');
 		if ($entity->state===Entity::STATE_FAILED) die ('SETTING FOR FAILED ENTITY');
 		// if ($entity->is_to_verify()) { vdump($entity); vdump($value); vdump($content); xdebug_print_function_stack(); die ('SETTING FOR UNVERIFIED ENTITY'); }
 			
-		$value->save_changes = $source!==Value::BY_KEEPER; // если изменённое значение переписывается из БД, то его всё же сохранять не надо.
+		$value->save_changes = $source!==$value::BY_KEEPER; // если изменённое значение переписывается из БД, то его всё же сохранять не надо.
 	}
 	
 	// задача этого запроса - немедленно возвратить значение. Если для этого требуется завершить процесс (задачу), то она немедленно завершается.
@@ -99,8 +104,8 @@ class DataSet extends ValueSet implements Templater
 			{
 				if (!is_null($value->filler_task)) die ('CLONING VALUE IN PROCESS');
 				$value=clone $value;
-				if ($value instanceof Value_contains_pool_member) $value->reset();
-				if ($valeu instanceof Value_handles_cloning) $value->cloned_from_pool($pool);
+				if (duck_instanceof($value, '\Pokeliga\Entity\Value_contains_pool_member')) $value->reset();
+				if (duck_instanceof($value, '\Pokeliga\Entity\Value_handles_cloning')) $value->cloned_from_pool($pool);
 				$value->master=$this;
 				$cloned_values[$key]=$value;
 			}

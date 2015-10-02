@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 // "вклад" пока что подцепляется к другим типам данных, а не является сущностью сам по себе.
 
@@ -18,6 +19,7 @@ class Contribution_identity extends Aspect
 			[
 				'type'=>'title'
 			],
+			// тут мог бы быть ещё параметр 'slug', но ему лучше быть в уникальной таблице того или иного типа сущности, поскольку обычно слаги должны быть уникальными в рамках типа сущности.
 			'annotation'=>
 			[
 				'type'=>'text',
@@ -32,7 +34,7 @@ class Contribution_identity extends Aspect
 			],
 			'cover_image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'auto_valid'=>[null],
 				'null'=>true,
@@ -40,7 +42,7 @@ class Contribution_identity extends Aspect
 			],
 			'contributor'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User',
 				'pathway_track'=>true
 			],

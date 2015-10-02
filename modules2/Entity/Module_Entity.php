@@ -1,19 +1,39 @@
 <?
-class Module_Entity extends Module
+namespace Pokeliga\Entity;
+
+class Module_Entity extends \Pokeliga\Entlink\Module
 {
-	use Module_autoload_by_beginning;
+	use \Pokeliga\Entlink\Module_autoload_by_beginning;
 	static $instance=null;
 	
 	public
 		$name='Entity',
 		$slugs=['entity', 'entities'],
+		$class_shorthands=
+		[
+			'Pokeliga\Data\ValueType'=>
+			[
+				'entity', 'id_group', 'reference', 'ids',
+				'linkset', 'linkset_ordered'
+			],
+			'Pokeliga\Entity\Keeper'=>
+			[
+				'db', 'id_and_group', 'var', 'var_array'
+			],
+			'Pokeliga\Data\Validator'=>
+			[
+				'subentity_exists', 'subentity_not_self', 'subentity_group_is', 'subentity_value_is', 'subentity_backlinks',
+				'all_ids_exist', 'id_in_range'
+			]
+		],
 		$quick_classes=
 		[
 			'Entity'						=>'Entity',
 			'EntityPool'					=>'EntityPool',
 			'Aspect'						=>'Aspect',
 			'DataSet'						=>'DataSet',
-			'Selector'						=>'Select',
+			'Select'						=>'Select',
+			'Value_of_entity'				=>'Value_of_entity',
 			
 			'Select_from_ids'				=>'Select_from_ids',
 			'Select_special_from_complex'	=>'Select_from_ids',
@@ -24,8 +44,8 @@ class Module_Entity extends Module
 			'Select_filter_siblings'		=>'Select_from_siblings',
 			
 			'LinkSet'						=>'LinkSet',
-			'Value_linkset'					=>'LinkSet',
-			'Value_linkset_ordered'			=>'LinkSet',
+			'ValueType_linkset'				=>'LinkSet',
+			'ValueType_linkset_ordered'		=>'LinkSet',
 			
 			'EntityType'					=>'EntityType',
 			'EntityType_untyped'			=>'EntityType',
@@ -40,11 +60,9 @@ class Module_Entity extends Module
 			
 			'Keeper'						=>'Keeper',
 			
-			'Value_links_entity'			=>'Entity_Data',
-			'Value_unkept'					=>'Entity_Data',
-			'Value_id'						=>'Entity_Data',
-			'Value_ids'						=>'Entity_Data',
-			'Value_own_id'					=>'Entity_Data',
+			'ValueType_entity'				=>'Entity_Data',
+			'ValueType_ids'					=>'Entity_Data',
+			'ValueType_own_id'				=>'Entity_Data',
 			'Validator_for_entity_value'	=>'Entity_Data',
 			'EntitySet'						=>'Entity_Data',
 			'Select_has_range_validator'	=>'Entity_Data',
@@ -60,9 +78,13 @@ class Module_Entity extends Module
 			'Task_save_generic_links'		=>'Entity_Task',
 			'Task_calc_aspect_right'		=>'Entity_Task',
 			
-			'Provider'						=>'Provider'
+			'Provider'						=>'Provider',
+			
+			'Request_entity_search'			=>'Entity_Request',
+			
+			'Test'							=>'Test'
 		],
-		$classex='/^(?<file>Keeper|Filler_for_entity|Provide|Select|Template_entity)[_$]/',
+		$classex='(?<file>Keeper|Filler_for_entity|Provide|Select|Template_entity)[_$]',
 		$class_to_file=['Provide'=>'Provider'];
 }
 

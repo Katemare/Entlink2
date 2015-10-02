@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Task;
 
 trait Logger_Process
 {
-	use Logger;
+	use \Pokeliga\Entlink\Logger;
 	
 	public function log_domain() { return 'Task'; }
 		

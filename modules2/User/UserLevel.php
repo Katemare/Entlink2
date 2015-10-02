@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // Описывает раздел сайта, задавя права различных пользователей относительно действий.
 
 class UserLevel extends EntityType
@@ -31,12 +33,12 @@ class UserLeveL_basic extends Aspect
 		[
 			'user'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User'
 			],
 			'section'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'SiteSection'
 			],
 			'level'=>

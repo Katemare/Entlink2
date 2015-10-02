@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 abstract class Form extends FieldSet
 {
@@ -29,7 +30,7 @@ abstract class Form extends FieldSet
 	public function pool()
 	{
 		if ($this->pool!==null) return $this->pool;
-		if ( (array_key_exists('pool', $this->super_model)) && ($this->super_model['pool'] instanceof EntityPool) ) $this->pool=$this->super_model['pool'];
+		if ( (array_key_exists('pool', $this->super_model)) && ($this->super_model['pool'] instanceof \Pokeliga\Entity\EntityPool) ) $this->pool=$this->super_model['pool'];
 		else $this->pool=EntityPool::default_pool();
 		return $this->pool;
 	}
@@ -82,7 +83,7 @@ abstract class Form extends FieldSet
 	
 	public function process_task()
 	{
-		if ($this->rightful()!==true) return $this->sign_report(new Report_impossible('unauthorized'));
+		if ($this->rightful()!==true) return $this->sign_report(new \Report_impossible('unauthorized'));
 		return parent::process_task();
 	}
 	
@@ -92,7 +93,7 @@ abstract class Form extends FieldSet
 		$template=$class::with_line($line);
 		if ($template instanceof Template_requies_fieldset) $template->set_fieldset($this);
 		if ($template instanceof Template_form) $template->form=$this;
-		if ( ($this->content_db_key!==null) && ($template instanceof Template_from_db) ) $template->db_key=$this->content_db_key;
+		if ( ($this->content_db_key!==null) && ($template instanceof \Pokeliga\Template\Template_from_db) ) $template->db_key=$this->content_db_key;
 		return $template;
 	}
 	
@@ -109,8 +110,8 @@ abstract class Form extends FieldSet
 	
 	public function redirect_by_report($report)
 	{
-		if ($report instanceof Report_success) $this->redirect_successful();
-		elseif ($report instanceof Report_impossible) $this->redirect_failed();
+		if ($report instanceof \Report_success) $this->redirect_successful();
+		elseif ($report instanceof \Report_impossible) $this->redirect_failed();
 		// если задача не закончена, то она явно подана ошибочно. пусть с этим разбирается объект Page_form, который предположительно и подсунул такую задачу.
 	}
 	
@@ -216,13 +217,13 @@ class Page_form extends Page_operation
 		
 		$form=$form_class::create_for_process();
 		$task=$form->process_task();
-		if ($task instanceof Task)
+		if ($task instanceof \Pokeliga\Task\Task)
 		{
 			$task->complete();
 			// global $debug; if ($debug) { debug_dump(); die('MEOW'); }
 			$form->redirect_by_task($task);
 		}
-		elseif ($task instanceof Report)
+		elseif ($task instanceof \Report)
 		{
 			$form->redirect_by_report($report);
 		}

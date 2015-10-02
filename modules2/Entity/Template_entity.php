@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Entity;
 
 // STAB: пока что этот шабло не поддерживает различия между сущностями с разными группами айди.
 class Template_entity_js_export extends Template_from_db
@@ -32,10 +33,10 @@ class Template_entity_js_export extends Template_from_db
 		// STUB: здесь должна быть возможность применить конструкцию типа "title as fragment_title" или "title=>fragment_title", чтобы экспортированные данные назывались иначе, а также добавить заранее установленных параметров, например, "type=>'point'". возможно, это решится просто добавлением возможности массивов в выражениях.
 		if ($this->step===static::STEP_REQUEST_DATA)
 		{
-			if (!array_key_exists('var', $this->line)) return $this->sign_report(new Report_impossible('no_var'));
-			if (!preg_match(static::VAR_EX, $this->line['var'])) return $this->sign_report(new Report_impossible('bad_var'));
+			if (!array_key_exists('var', $this->line)) return $this->sign_report(new \Report_impossible('no_var'));
+			if (!preg_match(static::VAR_EX, $this->line['var'])) return $this->sign_report(new \Report_impossible('bad_var'));
 			
-			if (!array_key_exists('data', $this->line)) return $this->sign_report(new Report_impossible('no_data_list'));
+			if (!array_key_exists('data', $this->line)) return $this->sign_report(new \Report_impossible('no_data_list'));
 			$data=&$this->line['data'];
 			$data=explode(',', $data);
 			$converted_data=[];			
@@ -54,7 +55,7 @@ class Template_entity_js_export extends Template_from_db
 			foreach ($data as $from=>$to)
 			{
 				if (is_numeric($from)) $name=$to; else $name=$from;
-				if (!preg_match(static::NAME_EX, $name)) return $this->sign_report(new Report_impossible('bad_data_entry'));
+				if (!preg_match(static::NAME_EX, $name)) return $this->sign_report(new \Report_impossible('bad_data_entry'));
 			}
 
 			$tasks=[]; $mode=null;
@@ -66,21 +67,21 @@ class Template_entity_js_export extends Template_from_db
 				if ($mode===EntityType::VALUE_NAME)
 				{
 					$result=$this->entity->request($name);
-					if ($result instanceof Report_impossible) return $result;
-					elseif ($result instanceof Report_task)
+					if ($result instanceof \Report_impossible) return $result;
+					elseif ($result instanceof \Report_task)
 					{
 						$this->by_name[$name]=$result->task;
 						$tasks[]=$result->task;
 					}
-					elseif ($result instanceof Report_resolution) $this->by_name[$name]=$result->resolution;
+					elseif ($result instanceof \Report_resolution) $this->by_name[$name]=$result->resolution;
 					else die ('BAD VALUE REQUEST RESULT');
 				}
 				elseif ($mode===EntityType::TEMPLATE_NAME)
 				{
 					$result=$this->entity->template($name);
-					if ($result instanceof Report_impossible) return $result;
-					elseif ($result instanceof Report) die('BAD TEMPLATE RESULT');
-					elseif ($result instanceof Task)
+					if ($result instanceof \Report_impossible) return $result;
+					elseif ($result instanceof \Report) die('BAD TEMPLATE RESULT');
+					elseif ($result instanceof \Pokeliga\Task\Task)
 					{
 						$this->by_name[$name]=$result;
 						$this->setup_subtemplate($result);
@@ -94,14 +95,14 @@ class Template_entity_js_export extends Template_from_db
 				}
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_PARSE_DATA)
 		{
 			$tasks=[];
 			foreach ($this->by_name as $name=>&$data)
 			{
-				if (!($data instanceof Task)) continue;
+				if (!($data instanceof \Pokeliga\Task\Task)) continue;
 				if ($data->failed()) return $data->report();
 				$data=$data->resolution;
 			}
@@ -110,11 +111,11 @@ class Template_entity_js_export extends Template_from_db
 			{
 				if (!($data instanceof Entity)) continue;
 				$report=$data->verify(false);
-				if ($report instanceof Report_impossible) return $report;
-				if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+				if ($report instanceof \Report_impossible) return $report;
+				if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		else return parent::run_step();
 	}

@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Data;
 
 trait Logger_Filler
 {
-	use Logger;
+	use \Pokeliga\Entlink\Logger;
 	
 	public function log_domain() { return 'Data'; }
 	

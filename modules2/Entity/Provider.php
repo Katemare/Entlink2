@@ -1,10 +1,24 @@
 <?
+namespace Pokeliga\Entity;
+
 abstract class Provider extends Task_for_entity
 {
 	use Prototyper;
 	
 	static
 		$prototype_class_base='Provide_';
+	
+	public static function from_data($data)
+	{
+		if (is_string($data)) $provider_code=$data;
+		elseif (is_array($data)) $provider_code=$data[0];
+		if ( (empty($provider_code)) && ( ($class=get_called_class())!=='Provider') ) $provider_code=$class;
+		if (empty($provider_code)) die ('BAD PROVIDER DATA');
+		
+		$provider=static::from_prototype($provider_code);
+		$provider->setup($this);
+		return $provider;
+	}
 	
 	public function subprovider($type_keyword, $args, $master)
 	{
@@ -53,6 +67,7 @@ class Fill_by_provider extends Filler
 {
 	public
 		$provider,
+		$provider_data,
 		$entity;
 	
 	public static function for_provider($provider, $value)
@@ -73,9 +88,58 @@ class Fill_by_provider extends Filler
 		$provider->setup_by_value($this->value);
 	}
 	
+	public function get_provider($now=true)
+	{
+		if (empty($this->provider))
+		{
+			$result=$this->create_provider();
+			if (($now) && ($result instanceof \Report_tasks))
+			{
+				$result->complete();
+				$result=$this->create_provider();
+				if ($result instanceof \Report_tasks) die('BAD PROVIDER REPORT');
+			}
+			if ($result instanceof \Report) return $result;
+			$this->provider=$result;
+		}
+		return $this->provider;
+	}
+	
+	public function create_provider()
+	{
+		if (empty($this->provider_data))
+		{
+			$provider_data=$this->value_model_now('provider_data');
+			if (empty($provider_data)) die('EMPTY PROVIDER DATA');
+			if ($provider_data instanceof \Report) die('BAD PROVIDER DATA');
+			$this->provider_data=$provider_data;
+		}
+		if (is_array($this->provider_data))
+		{
+			$tasks=[];
+			foreach ($this->provider_data as &$data)
+			{
+				if (Compacter::recognize_mark($data))
+				{
+					$data=Compacter::by_mark_and_extract($this, $content);
+					if ($data instanceof \Pokeliga\Task\Task) $tasks[]=$data;
+				}
+				elseif ($data instanceof \Pokeliga\Task\Task)
+				{
+					if ($task->successful()) $data=$task->resolution;
+					elseif ($task->failed()) $data=$task->report();
+					else $tasks[]=$task;
+				}
+			}
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
+		}
+		$provider=Provider::from_data($this->provider_data);
+		
+	}
+	
 	public function progress()
 	{
-		if ($this->provider->successful()) $this->finish_with_resolution($this->entity);
+		if ($this->provider->successful()) $this->finish_with_resolution($this->provider->entity);
 		elseif ($this->provider->failed()) $this->impossible('failed_provider');
 		else $this->register_dependancy($this->provider);
 	}
@@ -220,7 +284,7 @@ class Provide_sibling extends Provide_by_single_request
 		if ($this->reference->is_to_verify())
 		{
 			$result=$this->reference->exists(false);
-			if ($result instanceof Report_tasks) return $result->register_dependancies_for($this);
+			if ($result instanceof \Report_tasks) return $result->register_dependancies_for($this);
 		}
 		if (!$this->reference->exists()) return $this->impossible('reference_failed');
 		parent::progress();
@@ -247,8 +311,8 @@ class Provide_sibling extends Provide_by_single_request
 	public function get_data_set()
 	{
 		$rows=$this->get_request()->get_data_set();
-		if ($rows instanceof Report) return $rows;
-		if (empty($rows)) return $this->sign_report(new Report_impossible('not_found'));
+		if ($rows instanceof \Report) return $rows;
+		if (empty($rows)) return $this->sign_report(new \Report_impossible('not_found'));
 		return $rows;
 	}
 }

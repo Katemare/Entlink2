@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Nav;
 
 abstract class Page_xml extends Page_view_from_db
 {
@@ -29,9 +30,9 @@ abstract class Page_xml extends Page_view_from_db
 	
 	public function analyze_input()
 	{
-		if (!$this->input->input_success) return $this->sign_report(new Report_impossible('bad_input'));	
+		if (!$this->input->input_success) return $this->sign_report(new \Report_impossible('bad_input'));	
 		
-		if (!in_array($this->input->content_of('message'), $this->possible_messages, true)) return $this->sign_report(new Report_impossible('bad_message'));
+		if (!in_array($this->input->content_of('message'), $this->possible_messages, true)) return $this->sign_report(new \Report_impossible('bad_message'));
 		
 		return $this->advance_step();
 	}
@@ -101,7 +102,7 @@ class Template_extract_eval extends Template
 	
 	public function progress()
 	{
-		if (!($this->subtemplate instanceof Template))
+		if (!($this->subtemplate instanceof \Pokeliga\Template\Template))
 		{
 			$eval=$this->extract_eval($this->subtemplate);
 			$this->finish_with_resolution($eval);

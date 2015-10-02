@@ -1,18 +1,19 @@
 <?
+namespace Pokeliga\File;
 
-abstract class Value_coord extends Value_unsigned_int
+abstract class ValueType_coord extends ValueType_unsigned_int
 {
 }
 
-class Value_coord_x extends Value_coord
+class ValueType_coord_x extends ValueType_coord
 {
 }
 
-class Value_coord_y extends Value_coord
+class ValueType_coord_y extends ValueType_coord
 {
 }
 
-class Value_coords extends Value_int_array
+class ValueType_coords extends ValueType_int_array
 {
 	// STUB: тут могут быть всякие проверки, что координаты, представленные внутри, хорошие, но пока опасных ситуаций нет.
 }
@@ -24,7 +25,7 @@ class Validator_contains_point extends Validator_for_entity_value
 	
 	const
 		STEP_PRIMARY_REQUESTS=0, // запрашиваются все необходимые значения.
-		STEP_SECONDARY_REQUESTS=1, // два шага не потребуются, когда get_entity() будет возвращать сущность с настроенным провайдером или Report_impossible в любом случае.
+		STEP_SECONDARY_REQUESTS=1, // два шага не потребуются, когда get_entity() будет возвращать сущность с настроенным провайдером или \Report_impossible в любом случае.
 		STEP_COMPARE=2;
 	
 	public
@@ -36,24 +37,24 @@ class Validator_contains_point extends Validator_for_entity_value
 		{
 			$tasks=[];
 			
-			if (! ($this->value instanceof Value_provides_entity) ) return $this->sign_report(new Report_impossible('bad_value'));
+			if (! (duck_instanceof($this->value, '\Pokeliga\Entity\Value_links_entity')) ) return $this->sign_report(new \Report_impossible('bad_value'));
 			$fragment=$this->value->get_entity();
-			if ($fragment instanceof Report_tasks) $tasks=array_merge($tasks, $fragment->tasks);
+			if ($fragment instanceof \Report_tasks) $tasks=array_merge($tasks, $fragment->tasks);
 			
 			$coords=$this->value_model('point_coords');
-			if ($coords instanceof Report_tasks) $tasks=array_merge($tasks, $coords->tasks);
+			if ($coords instanceof \Report_tasks) $tasks=array_merge($tasks, $coords->tasks);
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 			
 		}
 		elseif ($this->step===static::STEP_SECONDARY_REQUESTS)
 		{
 			$fragment=$this->value->get_entity();
-			if ($fragment instanceof Report_impossible) return $fragment;
+			if ($fragment instanceof \Report_impossible) return $fragment;
 			$this->fragment=$fragment;
 			
 			$report=$fragment->request('coords');
-			if ($report instanceof Report_success) return $this->advance_step();
+			if ($report instanceof \Report_success) return $this->advance_step();
 			return $report;
 		}
 		elseif ($this->step===static::STEP_COMPARE)
@@ -71,8 +72,8 @@ class Validator_contains_point extends Validator_for_entity_value
 				}
 			}
 			
-			if ($good) return $this->sign_report(new Report_success());
-			return $this->sign_report(new Report_impossible('out_of_fragment'));
+			if ($good) return $this->sign_report(new \Report_success());
+			return $this->sign_report(new \Report_impossible('out_of_fragment'));
 		}
 	}
 }
@@ -99,7 +100,7 @@ class Validator_PiP extends Validator_for_entity_value
 	{
 		if ($this->step===static::STEP_PRIMARY_REQUESTS)
 		{
-			if (!($this->value instanceof Value_coords)) die ('BAD COORDS VALUE');
+			if (!($this->value instanceof Value_coords)) die ('BAD COORDS VALUE'); // FIX
 			$this->x=$this->value->subvalue('x')->content();
 			$this->y=$this->value->subvalue('y')->content();
 			
@@ -108,35 +109,35 @@ class Validator_PiP extends Validator_for_entity_value
 			if ($this->in_value_model('image_source'))
 			{
 				$big_image=$this->value_model('image_source');
-				if (!($big_image instanceof Report)) $big_image=$this->entity->request($big_image);
-				if ($big_image instanceof Report_impossible) return $big_image;
-				elseif ($big_image instanceof Report_task)
+				if (!($big_image instanceof \Report)) $big_image=$this->entity->request($big_image);
+				if ($big_image instanceof \Report_impossible) return $big_image;
+				elseif ($big_image instanceof \Report_task)
 				{
 					$tasks[]=$big_image->task;
 					$this->big_image=$big_image->task;
 				}
-				elseif ($big_image instanceof Report_resolution) $this->big_image=$big_image->resolution;
+				elseif ($big_image instanceof \Report_resolution) $this->big_image=$big_image->resolution;
 				else die('BAD REPORT');
 			}
 			
 			$small_image=$this->value_model('inner_image_source');
-			if (!($small_image instanceof Report)) $small_image=$this->entity->request($small_image);
+			if (!($small_image instanceof \Report)) $small_image=$this->entity->request($small_image);
 			
-			if ($small_image instanceof Report_impossible) return $small_image;
-			elseif ($small_image instanceof Report_task)
+			if ($small_image instanceof \Report_impossible) return $small_image;
+			elseif ($small_image instanceof \Report_task)
 			{
 				$tasks[]=$small_image->task;
 				$this->small_image=$small_image->task;
 			}
-			elseif ($small_image instanceof Report_resolution) $this->small_image=$small_image->resolution;
+			elseif ($small_image instanceof \Report_resolution) $this->small_image=$small_image->resolution;
 			else die('BAD REPORT');
 			
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_SECONDARY_REQUESTS)
 		{
-			if ($this->big_image instanceof Task)
+			if ($this->big_image instanceof \Pokeliga\Task\Task)
 			{
 				if ($this->big_image->failed()) return $this->big_image->report();
 				$this->big_image=$this->big_image->resolution;
@@ -150,7 +151,7 @@ class Validator_PiP extends Validator_for_entity_value
 				else die('NO PiP HEIGHT');
 			}
 			
-			if ($this->small_image instanceof Task)
+			if ($this->small_image instanceof \Pokeliga\Task\Task)
 			{
 				if ($this->small_image->failed()) return $this->small_image->report();
 				$this->small_image=$this->small_image->resolution;
@@ -167,8 +168,8 @@ class Validator_PiP extends Validator_for_entity_value
 				foreach ($to_request as $code)
 				{
 					$report=$image->request($code);
-					if ($report instanceof Report_impossible) return $report;
-					elseif ($report instanceof Report_task)
+					if ($report instanceof \Report_impossible) return $report;
+					elseif ($report instanceof \Report_task)
 					{
 						$this->dimensions[$image_code][$code]=$report->task;
 						$tasks[]=$report->task;
@@ -177,7 +178,7 @@ class Validator_PiP extends Validator_for_entity_value
 				}
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_COMPARE)
 		{
@@ -185,7 +186,7 @@ class Validator_PiP extends Validator_for_entity_value
 			{
 				foreach ($dims as &$dim)
 				{
-					if ($dim instanceof Task)
+					if ($dim instanceof \Pokeliga\Task\Task)
 					{
 						if ($dim->failed()) return $dim->report();
 						$dim=$dim->resolution;
@@ -199,8 +200,8 @@ class Validator_PiP extends Validator_for_entity_value
 				$this->y >= floor($this->dimensions['small_image']['height']/2) &&
 				$this->y <= $this->dimensions['big_image']['width']-floor($this->dimensions['small_image']['height']/2);
 			
-			if ($good) return $this->sign_report(new Report_success());
-			return $this->sign_report(new Report_impossible('bad_coords'));
+			if ($good) return $this->sign_report(new \Report_success());
+			return $this->sign_report(new \Report_impossible('bad_coords'));
 		}
 	}
 }

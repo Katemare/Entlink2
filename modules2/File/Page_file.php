@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 // FIX: в будущем подобные специфические правила страницы должны быть сделаны неким общим механизмом.
 
 class Page_file_from_db extends Page_view_from_db
@@ -143,7 +144,7 @@ class Page_file_new_image_point extends Page_file_view
 		[
 			'file'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image' // FIX: это сработает даже если файл не является картинкой, потому что пока динамического определения типа нет.
 			]
 		];
@@ -162,7 +163,7 @@ class Page_file_new_image_fragment extends Page_file_view
 		[
 			'file'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image' // FIX: это сработает даже если файл не является картинкой, потому что пока динамического определения типа нет.
 			]
 		];
@@ -181,7 +182,7 @@ class Page_image_location_edit extends Page_image_location_view
 		[
 			'location'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'ImageLocation'
 			]
 		],
@@ -222,7 +223,7 @@ class Page_file_image_locations extends Page_file_view
 		[
 			'file'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image' // FIX: это сработает даже если файл не является картинкой, потому что пока динамического определения типа нет.
 			]
 		];

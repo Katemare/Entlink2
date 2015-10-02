@@ -11,6 +11,7 @@ else $path='../..';
 include($path.'/entlink2_def.php');
 
 if ((!$debug) && (php_sapi_name()!=='cli') ) exit;
+const CRON=true;
 ini_set('display_errors', 1);
 
 $pool=EntityPool::default_pool(EntityPool::MODE_OPERATION);

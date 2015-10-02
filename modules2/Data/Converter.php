@@ -1,23 +1,21 @@
 <?
+namespace Pokeliga\Data;
 
-abstract class Converter extends Task_for_value
+abstract class Convert extends Task_for_value
 {
-	use Prototyper;
+	use \Pokeliga\Entlink\Shorthand;
 
 	const
 		DIR_FORWARD=1,
 		DIR_BACKWARD=2;
-	
-	static
-		$prototype_class_base='Convert_';
 		
 	public
 		$source,
-		$dir=Converter::DIR_FORWARD;
+		$dir=Convert::DIR_FORWARD;
 	
 	public static function with_args($keyword, $source, $args)
 	{
-		$converter=static::from_prototype($keyword);
+		$converter=static::from_shorthand($keyword);
 		$converter->source=$source;
 		$converter->save_arguments($args);
 		return $converter;

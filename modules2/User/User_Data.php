@@ -1,6 +1,7 @@
 <?
+namespace Pokeliga\User;
 
-class Value_login extends Value_title
+class ValueType_login extends ValueType_title
 {
 	public
 		$max=50;
@@ -11,7 +12,7 @@ class Value_login extends Value_title
 	}
 }
 
-class Value_logins extends Value_title
+class ValueType_logins extends ValueType_title
 {
 	public
 		$max=null;

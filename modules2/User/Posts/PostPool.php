@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 // это настройки типов постов (записей). некоторые типы постов не отличаются технически (авторская картинка, авторский текст...), но отличаются по тому, где они размещаются, как и где показываются, какие имеют настройки по умолчанию, кто имеет право редактировать... Не хочется для каждого случая делать свой тип (EntityType) постов. к тому же так модеры смогут настраивать посты.
 
@@ -66,7 +67,7 @@ class PostPool_basic extends Aspect
 			],
 			'section'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'SiteSection'
 			],
 		]
@@ -113,7 +114,7 @@ class PostPool_linking extends Aspect
 			'active_likes'=>
 			[
 				// "лайки", которые можно ставить сейчас.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'TagGroup',
 				'null'=>true,
 				'auto_valid'=>[null],
@@ -292,7 +293,7 @@ class PostPool_publishing extends Aspect
 			'editor_group'=>
 			[
 				// можно поставить ответственную за раздел редакторскую группу, имеющую право редактировать и попадать в соавторы. её правки всегда идут в свободном режиме.
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'UserGroup',
 				'null'=>true,
 				'auto_valid'=>[null],

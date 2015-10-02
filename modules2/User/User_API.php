@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 class Page_user_api extends Page_xml
 {
 	const
@@ -17,11 +19,11 @@ class Page_user_api extends Page_xml
 			$group=$this->input->content_of('group');
 			$entity=$this->pool()->entity_from_provider(['contribution_by_id', $id, $group], $group);
 			$entity->verify();
-			if ($entity->state===Entity::STATE_FAILED) return $this->sign_report(new Report_impossible('bad_contribution'));
+			if ($entity->state===Entity::STATE_FAILED) return $this->sign_report(new \Report_impossible('bad_contribution'));
 			$this->contribution=$entity;
 			return $this->advance_step();
 		}
-		return $this->sign_report(new Report_impossible('bad_message'));
+		return $this->sign_report(new \Report_impossible('bad_message'));
 	}
 	
 	public function content()

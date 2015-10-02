@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 abstract class Form_trophy_blueprint extends Form_entity
 {
@@ -7,7 +8,7 @@ abstract class Form_trophy_blueprint extends Form_entity
 		[
 			'id'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'TrophyBlueprint',
 				'template'=>'hidden',
 				'for_entity'=>true,
@@ -32,7 +33,7 @@ abstract class Form_trophy_blueprint extends Form_entity
 			],
 			'cover_image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'template'=>'select',
 				'null'=>true,
@@ -43,7 +44,7 @@ abstract class Form_trophy_blueprint extends Form_entity
 			],
 			'icon'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'template'=>'select',
 				'for_entity'=>true
@@ -188,25 +189,25 @@ class Form_trophy_blueprint_edit extends Form_trophy_blueprint
 		if ($this->model_stage===static::STAGE_DELETE)
 		{
 			// перестраховка.
-			if ($this->content_of('delete')!==true) return $this->sign_report(new Report_impossible('delete_not_approved'));
-			if ($this->content_of('delete2')!==true) return $this->sign_report(new Report_impossible('delete_not_approved'));
+			if ($this->content_of('delete')!==true) return $this->sign_report(new \Report_impossible('delete_not_approved'));
+			if ($this->content_of('delete2')!==true) return $this->sign_report(new \Report_impossible('delete_not_approved'));
 			
-			if ($this->entity()->my_right('delete')!==true) return $this->sign_report(new Report_impossible('no_delete_right'));
+			if ($this->entity()->my_right('delete')!==true) return $this->sign_report(new \Report_impossible('no_delete_right'));
 			
 			if (!$this->entity()->exists())
 				Router()->redirect(Router()->url('adopts/trophies_blueprints.php'));
-				//return $this->sign_report(new Report_impossible('doesnt_exist')); 
+				//return $this->sign_report(new \Report_impossible('doesnt_exist')); 
 				
 			$queries=$this->delete_queries();
 			foreach ($queries as $query)
 			{
 				$result=Retriever()->run_query($query);
-				if ($result instanceof Report) return $result;
+				if ($result instanceof \Report) return $result;
 			}			
 			Router()->redirect(Router()->url('adopts/trophies_blueprints.php'));
 			
 			// до этой строчки не должно дойти.
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 		else return $this->std_create_valid_processor();
 	}

@@ -1,8 +1,10 @@
 <?
-// результатом работы шаблона является строка, предназначенная для демонстрации пользователю тем или иным образом.
-abstract class Template extends Task implements Templater, ValueHost, Pathway
+namespace Pokeliga\Template;
+
+// результатом работы шаблона является строка или число, предназначенные для демонстрации пользователю тем или иным образом.
+abstract class Template extends \Pokeliga\Task\Task implements Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway
 {
-	use ValueHost_standard;
+	use \Pokeliga\Data\ValueHost_standard;
 	
 	const
 		MASTER_POINTER='#', // через этот префикс в стёке идёт обращение к шаблонам, просто находящимся в БД, не связанным ни с одним шаблонизатором.
@@ -61,7 +63,7 @@ abstract class Template extends Task implements Templater, ValueHost, Pathway
 		{
 			// иногда make_template может возвращать отчёт о задаче, содержащий внутри собственно шаблон.
 			$template=$this->make_template($code, $line);
-			if ($template instanceof Report_task) $template=$template->task;
+			if ($template instanceof \Report_task) $template=$template->task;
 			if ( ($template instanceof Template) && (empty($template->line)) ) $template->line=$line;
 			return $template;
 		}
@@ -102,7 +104,7 @@ abstract class Template extends Task implements Templater, ValueHost, Pathway
 		}
 	}
 	
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
 		if ($track===static::TRACK_PAGE) return $this->page;
 		if (empty($this->context)) return;
@@ -119,7 +121,7 @@ abstract class Template extends Task implements Templater, ValueHost, Pathway
 			// if ( (!empty($template->db_key)) && ($template->db_key==='standard.linked_title') ) { vdump('HISS'); vdump($template); }
 			$template->initiated();
 		}
-		elseif ($template instanceof Task_proxy)
+		elseif ($template instanceof \Pokeliga\Task\Task_proxy)
 		{
 			$template->add_call
 			(
@@ -145,7 +147,7 @@ abstract class Template extends Task implements Templater, ValueHost, Pathway
 	
 	public function entity()
 	{
-		if ($this->context instanceof Entity) return $this->context;
+		if ($this->context instanceof \Pokeliga\Entity\Entity) return $this->context;
 		die ('UNIMPLEMENTED YET: deduce context');
 	}
 	
@@ -156,7 +158,7 @@ abstract class Template extends Task implements Templater, ValueHost, Pathway
 
 class Template_master implements Templater
 {
-	use Singleton;
+	use \Pokeliga\Entlink\Singleton;
 	
 	public function template($code, $line=[])
 	{
@@ -187,7 +189,7 @@ class Template_js_var extends Template
 	
 	public function progress()
 	{
-		if ($this->subtemplate instanceof Task)
+		if ($this->subtemplate instanceof \Pokeliga\Task\Task)
 		{
 			if ($this->subtemplate->failed()) $this->impossible('bad_subtemplate');
 			elseif ($this->subtemplate->successful())
@@ -252,7 +254,7 @@ abstract class Template_composed extends Template
 		{
 			$this->subtemplates=[];
 			$list=$this->spawn_subtasks();
-			if ($list instanceof Report_impossible)
+			if ($list instanceof \Report_impossible)
 			{
 				$this->impossible($list->errors);
 				return;
@@ -275,7 +277,7 @@ abstract class Template_composed extends Template
 		foreach ($list as $subtask)
 		{
 			$this->setup_subtemplate($subtask);
-			if ($subtask instanceof Task)
+			if ($subtask instanceof \Pokeliga\Task\Task)
 			{
 				$this->register_dependancy($subtask);
 				$this->subtemplates[]=&$subtask->resolution;
@@ -378,7 +380,7 @@ class Template_composed_call extends Template_composed
 
 class Template_from_text extends Template
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_GET_TEXT=0,
@@ -409,21 +411,21 @@ class Template_from_text extends Template
 		elseif ($this->step===static::STEP_EVAL)
 		{
 			$text=$this->text(true);
-			if ($text instanceof Report_impossible) return $text;
+			if ($text instanceof \Report_impossible) return $text;
 			
-			if ($this->plain) return $this->sign_report(new Report_resolution($this->text));
+			if ($this->plain) return new \Report_resolution($this->text, $this);
 			ob_start();
 			eval ($this->text);		
 			$this->buffer_store_output(); // после последнего ключевого слова мог остаться какой-нибудь вывод, сохраняем его.
 			ob_end_clean();
 			$report=$this->report();
-			if ($report instanceof Report_in_progress) return $this->advance_step(); // значит, нет зависимостей.
-			elseif ($report instanceof Report_tasks) return true; // задачи уже записаны в зависимости.
+			if ($report instanceof \Report_in_progress) return $this->advance_step(); // значит, нет зависимостей.
+			elseif ($report instanceof \Report_tasks) return true; // задачи уже записаны в зависимости.
 			return $report;
 		}
 		elseif ($this->step===static::STEP_COMPOSE)
 		{
-			return $this->sign_report(new Report_resolution($this->compose()));
+			return new \Report_resolution($this->compose(, $this));
 		}
 	}
 	
@@ -460,9 +462,9 @@ class Template_from_text extends Template
 		$this->buffer_store_output();	
 		$task=$this->keyword_task($track, $line);
 		
-		if ($task instanceof Report_impossible) $this->buffer_store_string('UNKNOWN TEMPLATE: '.((is_array($track))?(implode('.', $track)):($track)));
-		elseif ($task instanceof Report_tasks) $this->buffer_store_subtemplates($task);
-		elseif ($task instanceof Task) $this->buffer_store_subtemplate($task);
+		if ($task instanceof \Report_impossible) $this->buffer_store_string('UNKNOWN TEMPLATE: '.((is_array($track))?(implode('.', $track)):($track)));
+		elseif ($task instanceof \Report_tasks) $this->buffer_store_subtemplates($task);
+		elseif ($task instanceof \Pokeliga\Task\Task) $this->buffer_store_subtemplate($task);
 		elseif (is_object($task)) die ('BAD ELEMENT');
 		else $this->buffer_store_string($task);
 	}
@@ -472,8 +474,8 @@ class Template_from_text extends Template
 	
 	1. задачу Task_resolve_keyword_track или Task_delayed_keyword, обе из которых реализуют интерфейс Task_proxy, то есть по выполнении имеют результат идентичный шаблону, который пытаются получить.
 	2. Другой Task, обычно являющийся шаблоном.
-	3. Report_tasks, содержащий несколько шаблонов, которые предлагается зарегистрировать в буфере подряд - пока не реализовано.
-	4. Report_impossible, если шаблон по такому коду не найден.
+	3. \Report_tasks, содержащий несколько шаблонов, которые предлагается зарегистрировать в буфере подряд - пока не реализовано.
+	4. \Report_impossible, если шаблон по такому коду не найден.
 	5. Просто значение.
 */
 	public function keyword_task($track, $line=[])
@@ -488,26 +490,26 @@ class Template_from_text extends Template
 		$line_has_tasks=false;
 		foreach ($line as &$arg)
 		{
-			if ($arg instanceof Compacter) $arg=$arg->extract_for($this);
-			if ($arg instanceof Task) $line_has_tasks=true;
+			if ($arg instanceof \Pokeliga\Data\Compacter) $arg=$arg->extract_for($this);
+			if ($arg instanceof \Pokeliga\Task\Task) $line_has_tasks=true;
 		}
 		
 		if ( ($line_has_tasks) || (array_key_exists('cache_key', $line)) )
 		{
-			return new Task_delayed_keyword($track, $line, $this);
+			return new \Pokeliga\Task\Task_delayed_keyword($track, $line, $this);
 		}
 		
 		if (is_array($track)) return new Task_resolve_keyword_track($track, $line, $this);
 		
 		$element=$this->find_template($track, $line);
-		if ($element instanceof Report_impossible) return $element;
-		if ($element instanceof Report_task) return $element->task;
-		if ($element instanceof Report_tasks) return $element; // FIX: нужно предусмотреть вариант, когда ряд задач будет возвращён одному из Task_proxy, которые уже добавлены в буфер в виде единсвтенного шаблона.
+		if ($element instanceof \Report_impossible) return $element;
+		if ($element instanceof \Report_task) return $element->task;
+		if ($element instanceof \Report_tasks) return $element; // FIX: нужно предусмотреть вариант, когда ряд задач будет возвращён одному из Task_proxy, которые уже добавлены в буфер в виде единсвтенного шаблона.
 		
-		if ($element instanceof Report_resolution) $element=$element->resolution;
+		if ($element instanceof \Report_resolution) $element=$element->resolution;
 		
-		if ($element===null) return $this->sign_report(new Report_impossible('no_keyword_resolution'));
-		if ($element instanceof Task) return $element;
+		if ($element===null) return new \Report_impossible('no_keyword_resolution', $this);
+		if ($element instanceof \Pokeliga\Task\Task) return $element;
 		if (is_object($element)) { vdump($element); vdump($this); die ('BAD REPORT 2'); }
 		
 		return $element;
@@ -517,15 +519,15 @@ class Template_from_text extends Template
 	// такой запрос записывается не {{pokemon.id}}, а @pokemon.id и возвращает не шаблон - отображение для пользователя; а собственно значение, поэтому командной строки не нужно (она обычно уточняет параметры отображения). В выражениях следует всегда обращаться за значениями, а не шаблонами, потому что хотя вместо шаблона иногда может вернуться значение (например, числовые значения обычно возвращают просто себя), лучше наверняка получить значение.
 	public function value_task($track)
 	{
-		if (is_array($track)) return new Task_resolve_value_track($track, $this);
+		if (is_array($track)) return new \Pokeliga\Data\Task_resolve_value_track($track, $this);
 		
 		$element=$this->ValueHost_request($track);
-		if ($element===null) return $this->sign_report(new Report_impossible('no_value_resolution'));
-		if ($element instanceof Report_resolution) return $element->resolution;
-		if ($element instanceof Report_impossible) return $element;
-		if ($element instanceof Report_task) return $element->task;
-		if ($element instanceof Report_tasks) die ('BAD REPORT');
-		if ($element instanceof Task) return $element;
+		if ($element===null) return new \Report_impossible('no_value_resolution', $this);
+		if ($element instanceof \Report_resolution) return $element->resolution;
+		if ($element instanceof \Report_impossible) return $element;
+		if ($element instanceof \Report_task) return $element->task;
+		if ($element instanceof \Report_tasks) die ('BAD REPORT');
+		if ($element instanceof \Pokeliga\Task\Task) return $element;
 		
 		if (is_object($element)) { vdump($element); die ('BAD REPORT 2'); }
 		return $element;
@@ -561,8 +563,8 @@ class Template_from_text extends Template
 	{
 		$this->setup_subtemplate($template);
 		$report=$template->report();
-		if ($report instanceof Report_impossible) return $this->buffer_store_error($report->errors);
-		if ($report instanceof Report_resolution) return $this->buffer_store_string($report->resolution);
+		if ($report instanceof \Report_impossible) return $this->buffer_store_error($report->errors);
+		if ($report instanceof \Report_resolution) return $this->buffer_store_string($report->resolution);
 		
 		$this->buffer_store_reference($template->resolution);
 		$this->register_dependancy($template);
@@ -570,7 +572,7 @@ class Template_from_text extends Template
 	
 	public function buffer_store_subtemplates($templates)
 	{
-		if ($templates instanceof Report_tasks) $templates=$templates->tasks;
+		if ($templates instanceof \Report_tasks) $templates=$templates->tasks;
 		foreach ($templates as $template)
 		{
 			$this->buffer_store_subtemplate($template);
@@ -582,7 +584,7 @@ class Template_from_text extends Template
 	// пока нет функционала, чтобы это использовать, и случая, когда бы это пригождалось.
 	public function buffer_store_call($call)
 	{
-		if (! ($call instanceof Call)) $call=new Call($call);
+		if (! ($call instanceof \Pokeliga\Entlink\Call)) $call=new Call($call);
 		$this->buffer[]=$call;
 	}
 	*/
@@ -676,13 +678,13 @@ class Template_from_db extends Template_from_text implements CodeHost
 		if ($this->step===static::STEP_GET_KEY)
 		{
 			$result=$this->db_key(false);
-			if ($result instanceof Report) return $result;
+			if ($result instanceof \Report) return $result;
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_EVAL_ONCE)
 		{
 			$text=$this->text(); // заставляет получить и проанализировать данные из БД, в том числе дописать в static::$eval_once.
-			if ($text instanceof Report_impossible) return $text;
+			if ($text instanceof \Report_impossible) return $text;
 			
 			$db_key=$this->db_key();
 			if ( (array_key_exists($db_key, static::$eval_once)) && (static::$eval_once[$db_key]===null) ) return $this->advance_step();
@@ -716,8 +718,8 @@ class Template_from_db extends Template_from_text implements CodeHost
 				ob_end_clean();
 				
 				$report=$this->report();
-				if ($report instanceof Report_in_progress) return $this->advance_step(); // значит, нет зависимостей.
-				elseif ($report instanceof Report_tasks) return true; // задачи уже записаны в зависимости.
+				if ($report instanceof \Report_in_progress) return $this->advance_step(); // значит, нет зависимостей.
+				elseif ($report instanceof \Report_tasks) return true; // задачи уже записаны в зависимости.
 				return $report;
 			}
 			return parent::run_step();
@@ -752,7 +754,7 @@ class Template_from_db extends Template_from_text implements CodeHost
 	{
 		if (!is_null($this->db_key)) return $this->db_key;
 		$result=$this->get_db_key($now);
-		if ($result instanceof Report) return $result;
+		if ($result instanceof \Report) return $result;
 		$this->db_key=$result;
 		return $this->db_key;
 	}
@@ -772,7 +774,7 @@ class Template_from_db extends Template_from_text implements CodeHost
 		else $mode=Request::GET_DATA_SET;
 		
 		$data=$this->get_request()->get_data($db_key=$this->db_key(), $mode);
-		if ($data instanceof Report) return $data;
+		if ($data instanceof \Report) return $data;
 		if (!array_key_exists($db_key, static::$eval_once)) static::$eval_once[$db_key]=$data[static::EVAL_ONCE_FIELD];
 		if ($data['plain']) $this->plain=true;
 		return $data[static::COMPILED_FIELD];
@@ -871,7 +873,7 @@ class Template_from_db extends Template_from_text implements CodeHost
 		if ($this->step===static::STEP_GET_KEY)
 		{
 			$result=$this->db_key(false);
-			if ($result instanceof Report) return $result;
+			if ($result instanceof \Report) return $result;
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_EVAL_ONCE)
@@ -892,7 +894,7 @@ class Template_from_db extends Template_from_text implements CodeHost
 	{
 		if ($this->db_key!==null) return $this->db_key;
 		$result=$this->get_db_key($now);
-		if ($result instanceof Report) return $result;
+		if ($result instanceof \Report) return $result;
 		$this->db_key=$result;
 		return $this->db_key;
 	}
@@ -909,7 +911,7 @@ class Template_from_db extends Template_from_text implements CodeHost
 		else $mode=Request::GET_DATA_SET;
 		
 		$data=$this->get_request()->get_data($db_key=$this->db_key(), $mode);
-		if ($data instanceof Report) return $data;
+		if ($data instanceof \Report) return $data;
 		if (!array_key_exists($db_key, static::$eval_once)) static::$eval_once[$db_key]=$data[static::EVAL_ONCE_FIELD];
 		if ($data['plain']) $this->plain=true;
 		return $data[static::COMPILED_FIELD];
@@ -951,10 +953,10 @@ trait Task_resolves_line
 		$tasks=[];
 		foreach ($this->line as $code=>$argument)
 		{
-			if ($argument instanceof Compacter) $argument=$argument->extract_for($this->compacter_host());
-			if ($argument instanceof Task)
+			if ($argument instanceof \Pokeliga\Data\Compacter) $argument=$argument->extract_for($this->compacter_host());
+			if ($argument instanceof \Pokeliga\Task\Task)
 			{
-				if ($argument->failed()) return $this->sign_report(new Report_impossible('bad_argument'));
+				if ($argument->failed()) return new \Report_impossible('bad_argument', $this);
 				elseif ($argument->successful()) $this->line[$code]=$argument->resolution;
 				else
 				{
@@ -963,8 +965,8 @@ trait Task_resolves_line
 				}
 			}
 		}
-		if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
-		else return $this->sign_report(new Report_success());
+		if (!empty($tasks)) return new \Report_tasks($tasks, $this);
+		else return new \Report_success(, $this);
 	}
 	
 	public abstract function compacter_host();
@@ -977,7 +979,7 @@ trait Task_checks_cache
 
 	public function make_cache_key($line=[])
 	{
-		if (!array_key_exists('cache_key', $line)) return $this->sign_report(new Report_impossible('no_cache_key'));
+		if (!array_key_exists('cache_key', $line)) return new \Report_impossible('no_cache_key', $this);
 		$cache_key=['code'=>$line['cache_key']];
 		if (array_key_exists('cache_num', $line)) $cache_key['num']=$line['cache_num'];
 		if (array_key_exists('cache_expiry', $line)) $cache_key['expiry']=$line['cache_expiry'];
@@ -992,159 +994,22 @@ trait Task_checks_cache
 		
 		$task=Task_retrieve_cache::with_cache_key($cache_key);
 		$this->cache_task=$task;
-		return $this->sign_report(new Report_task($task));
+		return new \Report_task($task, $this);
 	}
 	
 	public function process_cache()
 	{
-		if ( ($this->cache_task instanceof Task) && ($this->cache_task->successful()) ) return $this->cache_task->report();
+		if ( ($this->cache_task instanceof \Pokeliga\Task\Task) && ($this->cache_task->successful()) ) return $this->cache_task->report();
 	}
 	
 	public function save_cache($content)
 	{
-		if (!($this->cache_task instanceof Task)) return;
+		if (!($this->cache_task instanceof \Pokeliga\Task\Task)) return;
 		return $this->cache_task->save_cache($content);
 	}
 }
 
-abstract class Task_resolve_track extends Task implements Task_proxy
-{	
-	public
-		$original_track,
-		$track,
-		$location,
-		$iteration=0,
-		$again=null;
-		
-	public function __construct($track, $origin)
-	{
-		$this->track=$track;
-		$this->original_track=$track;
-		$this->location=$origin;
-		parent::__construct();
-	}
-	
-	public function compacter_host()
-	{
-		if ($this->iteration===0) return $this->location;
-		die ('LATE COMPACTER CALL');
-	}
-	
-	public function progress()
-	{
-		if ( (count($this->track)==1) && ($this->again===null) )
-		{
-			$this->endpoint_reached();
-			return;
-		}
-
-		if (! ($this->location instanceof Pathway) ) { vdump($this->original_track); vdump($this->location); die ('BAD TRACK LOCATION'); }
-		if ($this->again!==null) $track=$this->again;
-		else $track=array_shift($this->track);
-		$this->again=null;
-		$this->iteration++;
-		$result=$this->follow_track($track);
-		
-		/*
-		vdump(get_class($this));
-		vdump('ORIGINAL: '.implode('.', $this->original_track));
-		vdump('TRACK: '.$track);
-		vdump('LOC: '.get_class($this->location));
-		if ($this->location instanceof Template)
-		{
-			vdump('CONTEXT: '.get_class($this->location->context));
-			if ($this->location->context instanceof Entity) vdump('TYPE '.$this->location->context->id_group);
-		}
-		vdump('RESULT: '.get_class($result));
-		vdump('---');
-		*/
-		
-		if ($result instanceof Report_impossible) $this->impossible($result->errors);
-		elseif ($result===null) $this->impossible('bad_track');
-		elseif ($result instanceof Report_tasks)
-		{
-			$result->register_dependancies_for($this);
-			$this->again=$track;
-		}
-		else $this->location=$result; // соответствие Pathway, Templater или ValueHost будет проверено в следующем прогрессе.
-	}
-	
-	public function endpoint_reached()
-	{
-		$this->iteration=null;
-		if (!$this->good_endpoint())
-		{
-			// vdump('BAD ENDPOINT: '.reset($this->track)); 
-			$this->impossible('bad_endpoint');
-			return;
-		}
-		$result=$this->ask_endpoint();
-		// vdump('ENDPOINT RESULT: '); vdump($result);
-		
-		if ($result instanceof Report_task) $result=$result->task;
-		if ($result instanceof Task) $this->register_dependancy($result);
-		elseif ($result instanceof Report_impossible) $this->impossible($result->errors);
-		elseif ($this->good_resolution($result))
-		{
-			$this->resolution=$result;
-			$this->finish();
-		}
-		else { vdump($result); vdump($this); die ('BAD TRACK RESOLUTION 1'); }
-		
-		$this->make_calls('proxy_resolved', $result);
-	}
-	
-	public abstract function good_endpoint();
-	
-	public abstract function ask_endpoint();
-	
-	public function follow_track($track)
-	{
-		if ($track==='')
-		{
-			if ($this->iteration>1) return $this->sign_report(new Report_impossible('inappropriate_track'));
-			return $this->location; // конструкция типа ".title" используется для того, чтобы непременно задействовать этот способ обращения к шаблонизатору. например, .title в шаблоне, контекст которого - покемон, непременно обратится к покемону, не пытаясь найти то же кодовое слово в локальных элементах шаблона.
-		}
-		if ($track==='#')
-		{
-			if ($this->iteration>1) return $this->sign_report(new Report_impossible('inappropriate_track'));
-			return Template::master_instance();
-		}
-		
-		if ( ($this->iteration==1) && (array_key_exists($track, $pathways=Engine()->tracks)) ) return $pathways[$track];
-		
-		if (($location=$this->location->follow_track($track))!==null) return $location;
-		
-		return $this->sign_report(new Report_impossible('no_track'));
-	}
-	
-	public function dependancy_resolved($task, $identifier=null)
-	{
-		parent::dependancy_resolved($task, $identifier);
-		
-		if ($this->iteration===null)
-		{
-			$report=$task->report();
-			if ($report instanceof Report_impossible) $this->impossible($report->errors);
-			elseif ($report instanceof Report_resolution)
-			{
-				$this->resolution=$report->resolution;
-				$this->finish();
-			}
-			else die ('BAD TRACK DEPENDANCY');
-		}
-	}
-	
-	public function finish($success=true)
-	{
-		if ($success!==true) $this->resolution='MISSING TEMPLATE: '.implode('.', $this->original_track);
-		parent::finish($success);
-	}
-	
-	public abstract function good_resolution($result);
-}
-
-class Task_resolve_keyword_track extends Task_resolve_track
+class Task_resolve_keyword_track extends \Pokeliga\Data\Task_resolve_track
 {	
 	public
 		$line=[];
@@ -1157,46 +1022,30 @@ class Task_resolve_keyword_track extends Task_resolve_track
 	
 	public function good_endpoint()
 	{
-		return $this->location instanceof Templater;
+		return duck_instanceof($this->location, '\Pokeliga\Template\Templater');
 	}
 	
-	public function ask_endpoint()
+	public function ask_endpoint($track, $track_line)
 	{
-		return $this->location->template(reset($this->track), $this->line);
+		return $this->location->template($track, $this->line);
 	}
 	
 	public function good_resolution($result)
 	{
 		return !is_object($result);
 	}
-}
-
-class Task_resolve_value_track extends Task_resolve_track
-{
-	public function good_endpoint()
-	{
-		return $this->location instanceof ValueHost;
-	}
 	
-	public function ask_endpoint()
+	public function finish($success=true)
 	{
-		$result=$this->location->request(reset($this->track));
-		if ($result instanceof Report_resolution) return $result->resolution;
-		elseif ($result instanceof Report_task) return $result->task;
-		elseif ($result instanceof Report_tasks) die ('BAD VALUE ENDPOINT'); // недопустимый результат согласно интерфейсу ValueHost
-		return $result;
-	}
-	
-	public function good_resolution($result)
-	{
-		return true;
+		if ($success!==true) $this->resolution='MISSING TEMPLATE: '.$this->human_readable_track(); // FIX! чтобы что-то поместить в текст в качестве дебага... а вообще-то проваленные задачи не должны иметь разрешения.
+		parent::finish($success);
 	}
 }
 
-// подразумевает односложный путь, типа {{id}}, а не {{pokemon.id}}
-class Task_delayed_keyword extends Task implements Task_proxy
+// подразумевает односложный путь, типа {{id}}, а не {{pokemon.id}} ???
+class Task_delayed_keyword extends \Pokeliga\Task\Task implements \Pokeliga\Task\Task_proxy
 {
-	use Task_resolves_line, Task_checks_cache, Task_steps;
+	use Task_resolves_line, Task_checks_cache, \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_RESOLVE_LINE=0,
@@ -1229,7 +1078,7 @@ class Task_delayed_keyword extends Task implements Task_proxy
 		if ($this->step===static::STEP_RESOLVE_LINE)
 		{
 			$report=$this->resolve_line();
-			if ($report instanceof Report_success) return $this->advance_step();
+			if ($report instanceof \Report_success) return $this->advance_step();
 			return $report;
 			
 		}
@@ -1244,22 +1093,22 @@ class Task_delayed_keyword extends Task implements Task_proxy
 			if (!empty($this->cache_task))
 			{
 				$report=$this->process_cache();
-				if ($report instanceof Report_resolution) return $report;
+				if ($report instanceof \Report_resolution) return $report;
 			}
 			
 			$line=$this->line;
 			unset($line['cache_key']);
 			$result=$this->host->keyword_task($this->keyword, $line);
 			$this->make_calls('proxy_resolved', $result);
-			if ($result instanceof Report_tasks) die ('UNIMPLEMENTED YET: delayed multitemplate');
+			if ($result instanceof \Report_tasks) die ('UNIMPLEMENTED YET: delayed multitemplate');
 			$this->final=$result;
-			if ($result instanceof Task) return $this->sign_report(new Report_task($result));
-			elseif (!empty($this->cache_task)) return $this->sign_report(new Report_resolution($result));
+			if ($result instanceof \Pokeliga\Task\Task) return new \Report_task($result, $this);
+			elseif (!empty($this->cache_task)) return new \Report_resolution($result, $this);
 			else return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_CHECK_CONTENT)
 		{
-			if ($this->final instanceof Task)
+			if ($this->final instanceof \Pokeliga\Task\Task)
 			{
 				if ($this->final->successful()) $this->final=$this->final->resolution;
 				else return $this->final->report();
@@ -1268,14 +1117,14 @@ class Task_delayed_keyword extends Task implements Task_proxy
 			if (!empty($this->cache_task))
 			{
 				$report=$this->save_cache($this->final);
-				if ($report instanceof Report_task) return $report;
+				if ($report instanceof \Report_task) return $report;
 			}
 			
-			return $this->sign_report(new Report_resolution($this->final));
+			return new \Report_resolution($this->final, $this);
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
-			return $this->sign_report(new Report_resolution($this->final));
+			return new \Report_resolution($this->final, $this);
 		}
 	}
 }

@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 
 class Template_img extends Template_from_db
 {
@@ -95,14 +96,14 @@ class Template_img_modulated_src extends Template
 		{
 			$tasks=[];
 			$result=$this->file->request('path');
-			if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
-			elseif ($result instanceof Report_impossible) return $this->sign_report(new Report_impossible('no_path'));
+			if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+			elseif ($result instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('no_path'));
 			
 			$result=$this->file->request('name');
-			if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
-			elseif ($result instanceof Report_impossible) return $this->sign_report(new Report_impossible('no_name'));
+			if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+			elseif ($result instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('no_name'));
 			if (empty($tasks)) return $this->advance_step();
-			else return $this->sign_report(new Report_tasks($tasks));
+			else return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_COMPOSE_MODULATED_ADDRESS)
 		{
@@ -117,16 +118,16 @@ class Template_img_modulated_src extends Template
 		{
 			$source_file=$this->file->value('server_address');			
 			if (!is_array($this->modulation_ops)) $this->modulation_ops=unserialize($this->modulation_ops);
-			static::modulate($source_file, $this->modulated_path, $this->modulation_ops);
+			static::modulate($source_file, $this->modulated_path, $this->modulation_ops, $this->modulation_code);
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
-			return $this->sign_report(new Report_resolution($this->modulated_url));
+			return $this->sign_report(new \Report_resolution($this->modulated_url));
 		}
 	}
 	
-	static function modulate($source_file, $target_file, $ops)
+	static function modulate($source_file, $target_file, $ops, $modulation_code)
 	{
 		copy ($source_file, $target_file);
 		$pointer_moved=false;
@@ -147,6 +148,10 @@ class Template_img_modulated_src extends Template
 			{
 				$command="convert $target_file -modulate 100,100,$op[0] $target_file";
 			}
+			elseif ($op_code==='C') // color (set hue)
+			{
+				$command="convert $target_file -colorspace HSL -channel Hue -evaluate set $op[0]% $target_file";
+			}
 			elseif ($op_code==='SP')
 			{
 				$spots=[$op];
@@ -162,8 +167,8 @@ class Template_img_modulated_src extends Template
 				{
 					$spot="circle $spot[0],$spot[1] $spot[0],".($spot[1]+$radius);
 				}
-				$full=File::compose_server_address('files/phenotypes', 'spinda_full.png');
-				$mask=File::compose_server_address('files/phenotypes', 'spinda_mask.png');
+				$full=Engine()->server_address('files/phenotypes', (substr($modulation_code, -3)==='_sh') ? 'spinda_full_shiny.png' : 'spinda_full.png' );
+				$mask=Engine()->server_address('files/phenotypes', 'spinda_mask.png');
 				$command="convert $target_file $full $mask \( -size 96x96 xc:black -fill white -draw '".implode(' ', $spots)."' \) \( -clone 2,3 -compose darken -composite \) -delete 2-3 -composite $target_file";
 			}
 			if ($command!==null) exec($command);
@@ -183,6 +188,7 @@ trait Template_file_related
 	
 	public function file()
 	{
+		// FIX! не работает, но этот код скоро будет удалён.
 		if ($this->context instanceof File) return $this->context();
 		die ('NO FILE');
 	}
@@ -200,9 +206,9 @@ class Template_file_image_location_select extends Template_field_select
 	public function make_options()
 	{
 		$locations=$this->file()->request('locations');
-		if ( ($locations instanceof Report_tasks) || ($locations instanceof Report_impossible) ) return $locations;
+		if ( ($locations instanceof \Report_tasks) || ($locations instanceof \Report_impossible) ) return $locations;
 		
-		// значит, Report_resolution.
+		// значит, \Report_resolution.
 		$locations=$locations->resolution;
 		
 	}

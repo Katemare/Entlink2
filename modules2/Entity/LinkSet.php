@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\Entity;
+
 // содержит набор сущностей, связанных с другой сущностью. предназначен для хранения в качестве содержимого в Value_linkset.
 class LinkSet extends EntitySet
 {
@@ -47,11 +49,12 @@ class LinkSet extends EntitySet
 	}
 }
 
-class Value_linkset extends Value implements Value_unkept, Value_provides_options, Value_contains_pool_member //, Value_searchable_options
+class ValueType_linkset extends \Pokeliga\Data\ValueType implements \Pokeliga\Data\Value_provides_options, \Pokeliga\Data\ValueType_handles_fill, Value_contains_pool_member //, Value_searchable_options
 {
 	use Value_searchable_entity;
 	
 	const
+		STANDARD_SELECTOR='Select',
 		DEFAULT_TEMPLATE_CLASS='Template_value_linkset',
 		DEFAULT_TEMPLATE_FORMAT_KEY='entry_template',
 		SELECT_TEMPLATE_CODE='select',
@@ -65,7 +68,7 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 	public
 		$options=[];
 	
-	public function legal_value($content)
+	public static function type_conversion($content)
 	{
 		if ($content instanceof LinkSet) return $content;
 		die ('BAD CONTENT');
@@ -80,17 +83,17 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		{
 			$count_ticket=$this->get_selector()->extract_count();
 			$report=$count_ticket->get_data_set();
-			if ($report instanceof Report_tasks)
+			if ($report instanceof \Report_tasks)
 			{
 				$callback=function() use ($count_ticket)
 				{
 					$result=$count_ticket->compose_data();
-					if ($result instanceof Report_impossible) return 0;
+					if ($result instanceof \Report_impossible) return 0;
 					return $result;
 				};
 				return Task_delayed_call::with_call($callback, $report->tasks);
 			}
-			elseif ($report instanceof Report_impossible) return 0;
+			elseif ($report instanceof \Report_impossible) return 0;
 			else return $report;
 		}
 		return parent::template($code, $line);
@@ -119,6 +122,7 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		
 		$selector=$this->get_selector();
 		
+		if (array_key_exists('search', $line)) $selector=$selector->select_search($line['search']);
 		if (array_key_exists('limit', $line))
 		{
 			if (array_key_exists('order', $line)) $order=$line['order']; else $order='id';
@@ -126,7 +130,6 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		}
 		elseif (array_key_exists('order', $line)) $selector=$selector->select_ordered($line['order']);
 		elseif (array_key_exists('random', $line)) $selector=$selector->select_random($line['random']);
-		elseif (array_key_exists('search', $line)) die('UNIMPLEMENTED YET: line search linkset');
 		
 		if (array_key_exists('per_page', $line))
 		{
@@ -162,13 +165,19 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 	
 	public function create_selector()
 	{
-		if ($this->filler_task instanceof Selector) return $this->filler_task;
+		if ($this->filler_task instanceof Select) return $this->filler_task;
 		if (!$this->in_value_model('select'))
 		{
 			if ($this->has_state(Value::STATE_FILLED)) return $this->representative_selector();
 			return null;
 		}
-		return Selector::for_value($this);
+		return $this->standard_selector();
+	}
+	
+	public function standard_selector()
+	{
+		$class=static::STANDARD_SELECTOR;
+		return $class::for_value($this);
 	}
 	
 	// возвращает Селектор, представляющий готовый набор (а не тот, который по модели).
@@ -193,9 +202,9 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		else $filler->master_fill();
 	}
 	
-	public function auto_mode()
+	public function detect_mode()
 	{
-		$this->mode=static::MODE_AUTO;
+		return \Pokeliga\Data\Value::MODE_AUTO;
 	}
 	
 	public function ValueHost_request($code)
@@ -216,7 +225,7 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		}
 		else $result=$this->options[$options_key];
 		
-		if ($result instanceof Task)
+		if ($result instanceof \Pokeliga\Task\Task)
 		{
 			if ($result->failed()) $result=false;
 			elseif ($result->successful()) $result=$result->resolution;
@@ -224,8 +233,8 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 		}
 		$this->options[$options_key]=$result;
 		
-		if ($result instanceof Task) return $this->sign_report(new Report_task($result));
-		if ($result===false) return $this->sign_report(new Report_impossible('bad_options'));
+		if ($result instanceof \Pokeliga\Task\Task) return $this->sign_report(new \Report_task($result));
+		if ($result===false) return $this->sign_report(new \Report_impossible('bad_options'));
 		if (is_array($result)) return $result;
 		die ('BAD LINKSET OPTIONS');
 	}
@@ -249,7 +258,8 @@ class Value_linkset extends Value implements Value_unkept, Value_provides_option
 	}
 }
 
-class Value_linkset_ordered extends Value_linkset
+// FIX! требуется обновление.
+class ValueType_linkset_ordered extends ValueType_linkset
 {
 	public function from_db($content)
 	{
@@ -285,9 +295,9 @@ class Value_linkset_ordered extends Value_linkset
 	}
 }
 
-class Task_linkset_make_options extends Task_for_value
+class Task_linkset_make_options extends \Pokeliga\Data\Task_for_value
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_FILL_VALUE=0,
@@ -305,18 +315,18 @@ class Task_linkset_make_options extends Task_for_value
 		if ($this->step===static::STEP_FILL_VALUE)
 		{
 			$result=$this->value->request();
-			if ($result instanceof Report_success) return $this->advance_step();
+			if ($result instanceof \Report_success) return $this->advance_step();
 			return $result;
 		}
 		elseif ($this->step===static::STEP_COLLECT_OPTIONS)
 		{
 			$linkset=$this->value->value();
-			if ($linkset instanceof Report) return $linkset;
+			if ($linkset instanceof \Report) return $linkset;
 			
 			$tasks=[];
 			foreach ($linkset->values as $linked)
 			{
-				if (!($linked instanceof Entity)) return $this->sign_report(new Report_impossible('bad_linked'));
+				if (!($linked instanceof Entity)) return $this->sign_report(new \Report_impossible('bad_linked'));
 				$id=$linked->db_id; // FIX! пока не позволяет в одном списке сущностей из разных групп айди, как, впрочем, и Линксет пока что.
 				
 				if ( (!empty($this->line)) && (array_key_exists('option_template', $this->line)) ) $code=$this->line['option_template'];
@@ -324,7 +334,7 @@ class Task_linkset_make_options extends Task_for_value
 				$template=$linked->template($code);
 				
 				
-				if ($template===null) return $this->sign_report(new Report_impossible('unknown_template'));
+				if ($template===null) return $this->sign_report(new \Report_impossible('unknown_template'));
 				elseif ($template->failed()) return $template->report();
 				elseif ($template->successful()) $this->options[$id]=$template->resolution;
 				else
@@ -336,12 +346,12 @@ class Task_linkset_make_options extends Task_for_value
 			}
 			
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_COMPOSE)
 		{
 			// если сюда дошла очередь, то все зависимости сработали успешно.
-			return $this->sign_report(new Report_resolution($this->options));
+			return $this->sign_report(new \Report_resolution($this->options));
 		}
 	}
 	
@@ -352,7 +362,7 @@ class Task_linkset_make_options extends Task_for_value
 	}
 }
 
-class Template_linkset extends Template_list
+class Template_linkset extends \Pokeliga\Data\Template_list
 {
 	public
 		$linkset=null,
@@ -370,7 +380,7 @@ class Template_linkset extends Template_list
 	{
 		$template=static::with_line($line);
 		$template->select=$select;
-		if ($select instanceof Paged)
+		if ($select instanceof \Pokeliga\Template\Paged)
 		{
 			$template->paged=true;
 			$template->current_page=$select->get_page();
@@ -404,7 +414,7 @@ class Template_linkset extends Template_list
 	public function request_count()
 	{
 		$request=$this->select->get_complete_count();
-		if ($request instanceof RequestTicket)
+		if ($request instanceof \Pokeliga\Retriever\RequestTicket)
 		{
 			$report=$request->get_data_set();
 			return $report;

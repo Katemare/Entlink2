@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 class User extends EntityType
 {
 	static
@@ -233,14 +235,14 @@ class Task_user_right extends Task_for_entity
 			else
 			{
 				$report=$this->entity->request($right);
-				if ($report instanceof Report_task) $result=$report->task;
-				elseif ($report instanceof Report_tasks) die('BAD USER RIGHT REPORT');
-				elseif ($report instanceof Report_resolution) $result=$report->resolution;
-				elseif ($report instanceof Report_impossible) $result=false;
+				if ($report instanceof \Report_task) $result=$report->task;
+				elseif ($report instanceof \Report_tasks) die('BAD USER RIGHT REPORT');
+				elseif ($report instanceof \Report_resolution) $result=$report->resolution;
+				elseif ($report instanceof \Report_impossible) $result=false;
 				$this->results[$right]=&$result;
 			}
 			
-			if ($result instanceof Task)
+			if ($result instanceof \Pokeliga\Task\Task)
 			{
 				if ($result->failed()) $result=false;
 				elseif ($result->successful()) $result=$result->resolution;

@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Nav;
 
 abstract class Page_operation extends Page
 {

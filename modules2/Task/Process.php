@@ -1,5 +1,7 @@
 <?
-load_debug_concern('Task', 'Process');
+namespace Pokeliga\Task;
+
+load_debug_concern(__DIR__, 'Process');
 
 // в рамках процесса статус DEPENDS означает, что следующим шагом должно быть выполнение запросов из $this->requests, и без этого ни одна задача не может продвинуться.
 // также Process не регистрирует свои подзадачи как зависимости, хотя сам может быть зависимостью для других задач.
@@ -16,11 +18,14 @@ abstract class Process extends Task
 		$delayed_tasks=[],
 		$delayed_processes=[]; // им нужно сообщать о том, что были произведены все запросы к БД, потмоу что процессы не используют обычный механизм зависимостей.
 	
+	################
+	### Создание ###
+	################
+	
 	public static function complete_tasks(...$args)
 	{
 		$process=new static(...$args);
-		$process->complete();
-		return $process;
+		return $process->now();
 	}
 	
 	public function create_process()
@@ -28,51 +33,125 @@ abstract class Process extends Task
 		return $this;
 	}
 	
-	public function complete()
+	##################
+	### Учёт задач ###
+	##################
+	
+	
+	public function add_subtask($task)
 	{
-		$this->log('to_complete');
+		if ($task->completed()) return;
 		
-		$try=0;
-		$unresolved=$this->subtasks;
-		$this->increase_need_by($this);
-		while ( ($this->progressable===true) && (++$try<=static::MAX_ITERATIONS) )
+		$this->log('adding_subtask', ['subtask'=>$task]);
+		$request=$task instanceof \Pokeliga\Retriever\Request;
+		if ($request) $pool=&$this->requests;
+		else $pool=&$this->subtasks;
+			
+		if (array_key_exists($task->object_id, $pool)) return;		
+		$pool[$task->object_id]=$task;
+		$report=$task->report();
+	
+		if ($report instanceof \Report_dependant)
 		{
-			$this->log('new_cycle', ['try'=>$try]);
-			$this->max_standalone_progress();
-			if ($this->completed())	break;
-			elseif ($this->progressable===static::STATE_DEPENDS) $this->make_requests();
-			else { vdump($this); die ('UNKNOWN PROCESS STATE'); }
+			if (!$request) $this->delay_subtask($task); // запросы хранятся отдельно от отложенных задач.
+			$this->add_subtasks($report->get_deps());
 		}
-		$this->decrease_need_by($this);
-		$this->finalize();
-		
+		elseif (!$request) $this->activate_task($task); // запросы хранятся отдельно от активных задач.
 	}
 	
-	public function make_requests()
+	public function add_subtasks($tasks)
 	{
-		$this->log('requests');
-		foreach ($this->requests as $request)
+		if ($tasks instanceof Task) return $this->add_subtask($tasks);
+		
+		foreach ($tasks as $task)
 		{
-			if (!$request->is_needed()) continue; // удалять из массива не требуется, они и так удалятся в рамках made_requests()
-			$this->log('request', ['request'=>$request]);
-			$request->max_standalone_progress();
-			if ($this->completed()) return;			
-			$this->log('subtask_report', ['subtask'=>$request]);
+			$this->add_subtask($task);
 		}
-		if ($this->progressable===static::STATE_DEPENDS) $this->made_requests();
 	}
 	
-	public function made_requests()
+	// пока только для обычных задач! запросы удаляются все разом после обращения к БД.
+	// это единственное место, где задачи удаляются.
+	public function remove_subtask($task)
 	{
-		$this->progressable=true;
-		foreach ($this->delayed_processes as $process)
-		{
-			$process->made_requests();
-		}
-		$this->invalidate_report();
-		$this->requests=[];
-		$this->make_calls('progressable');
+		$this->deactivate_task($task);
+		$this->clear_delay($task);
+		unset($this->subtasks[$task->object_id]);
 	}
+	
+	public function add_task_dependancies($deps, $task)
+	{
+		foreach ($deps as $dep)
+		{
+			$this->add_task_dependancy($dep, $task);
+		}
+	}
+	public function add_task_dependancy($dep, $task)
+	{
+		$this->add_subtask($dep);
+	}
+	
+	####################################
+	### Отложенные и активные задачи ###
+	####################################
+	
+	// отложенной считается задача, про которую известно, что она ждёт выполнения зависимостей. все остальные задачи активные. применение этого генератора позвоялет не тратить время на лишнюю проверку статуса отложенных задач, пока они сами не сообщат, что они готовы продолжить выполнение (или что они завершены).
+	
+	// генератор.
+	public function active_tasks($limit=self::MAX_ACTIVE_PASSES)
+	{
+		// $this->debug('GEN, '.count($this->active_tasks).' ACTIVE TASKS of '.$this->object_id);
+		$c=0;
+		while ( (!empty($this->active_tasks)) && ($c<$limit) )
+		{
+			if (count($this->active_tasks)==0) break;
+			$task=current($this->active_tasks); // после прохода по задаче задача должна так или иначе выписаться из активных, и текущая позиция изменится. всё равно на какую в данном случае.
+			if ($task===false) $task=reset($this->active_tasks); // наша песня хороша, начинай с начала.
+			yield key($this->active_tasks)=>$task;
+			$c++;
+		}
+		if ($c>=$limit) yield false;
+	}
+	
+	// это единственное место, где задачи попадают в активные.
+	public function activate_task($task)
+	{
+		if ($task->completed()) return;
+		$this->clear_delay($task);
+		$this->active_tasks[$task->object_id]=$task;
+		// $this->debug(count($this->active_tasks).' ACTIVE TASKS of '.$this->object_id);
+	}
+	// это единственное место, где задачи выписываются из активных.
+	public function deactivate_task($task)
+	{
+		// $this->debug('DEACTIVATE, '.count($this->active_tasks).' ACTIVE TASKS NOW of '.$this->object_id);
+		unset($this->active_tasks[$task->object_id]);
+	}
+	
+	public $call_progressable=[];
+	// это единственное место, где задачи попадают в задержанные.
+	public function delay_subtask($task)
+	{
+		$this->deactivate_task($task);
+		$this->delayed_tasks[$task->object_id]=$task;
+		if ($task instanceof Process) $this->delayed_processes[$task->object_id]=$task;
+		if (empty($this->call_progressable[$task->object_id]))
+		{
+			$task->add_call(function($task) { $this->activate_task($task); }, 'progressable');
+			$task->add_call(function($task) { $this->remove_completed($task); }, 'complete');
+			$this->call_progressable[$task->object_id]=true;
+			// процесс не отписывается от задачи, когда та разрешается или становится снова доступной для выполнения. когда задача снова уткнётся, не придётся записываться снова. то же самое, если задача сбросится до начала. если процесс уже завершён, ничего особенного не произойдёт. современный уборщик мусора зацикленные ссылки не остановят.
+		}
+	}
+	// это единственное место, где задачи выписываются из задержанных.
+	public function clear_delay($task)
+	{
+		unset($this->delayed_tasks[$task->object_id]);
+		unset($this->delayed_processes[$task->object_id]);
+	}
+	
+	##################
+	### Выполнение ###
+	##################
 	
 	public function progress()
 	{
@@ -106,16 +185,16 @@ abstract class Process extends Task
 			}
 			elseif (!$task->is_needed())
 			{
-				$this->remove_subtask($task);
+				$this->remove_not_needed($task);
 				$this->log('drop_unneeded', ['subtask'=>$task]);
 				continue;
 			}
-			elseif ( ($report=$task->report()) instanceof Report_tasks)
+			elseif ( ($report=$task->report()) instanceof \Report_dependant)
 			{
-				$this->add_dependancies($report->tasks, $task);
+				$this->add_task_dependancies($report->tasks, $task);
 				$this->delay_subtask($task);
 			}
-			else { vdump($report); vdump($task); die('BAD TASK STATE'); }
+			else { vdump($report); vdump($task); die('BAD TASK REPORT'); }
 		}
 		
 		if ($this->completed()) return;
@@ -129,153 +208,10 @@ abstract class Process extends Task
 			$this->progressable=static::STATE_DEPENDS;
 			$this->invalidate_report();
 		}
-		else
-		{
-			$this->no_progress_possible();
-		}
+		else $this->no_progress_possible();
 		
 		$this->log('progress_result');
 		// если процесс максимально продвинул задачи и, значит, все они застряли, но ни одна ни требует запросов - до завершения процесса невозможно.
-	}
-	
-	// некоторые процессы в таком случае могут извлечь дополнительные задачи и продолжить прогресс.
-	public function no_progress_possible()
-	{
-		$this->impossible('no_progress_possible');
-	}
-	
-	// генератор.
-	public function active_tasks($limit=self::MAX_ACTIVE_PASSES)
-	{
-		// $this->debug('GEN, '.count($this->active_tasks).' ACTIVE TASKS of '.$this->object_id);
-		$c=0;
-		while ( (!empty($this->active_tasks)) && ($c<$limit) )
-		{
-			if (count($this->active_tasks)==0) break;
-			$task=current($this->active_tasks); // после прохода по задаче задача должна так или иначе выписаться из активных, и текущая позиция изменится. всё равно на какую в данном случае.
-			if ($task===false) $task=reset($this->active_tasks); // наша песня хороша, начинай с начала.
-			yield key($this->active_tasks)=>$task;
-			$c++;
-		}
-		if ($c>=$limit) yield false;
-	}
-	
-	public function make_report()
-	{
-		if ($this->progressable===static::STATE_DEPENDS)
-		{
-			if (empty($this->requests)) // и так должно быть обнаружено выше, но на всякий случай.
-			{
-				$this->finalize();
-				return parent::make_report();
-			}
-			return new Report_tasks($this->requests);
-		}	
-		else return parent::make_report();
-	}
-	
-	public function add_subtask($task)
-	{
-		if ($task->completed()) return;
-		
-		$this->log('adding_subtask', ['subtask'=>$task]);
-		$request=($task instanceof Request);
-		if ($request) $pool=&$this->requests;
-		else $pool=&$this->subtasks;
-			
-		if (array_key_exists($task->object_id, $pool)) return;		
-		$pool[$task->object_id]=$task;
-		$report=$task->report();
-	
-		if ($report instanceof Report_tasks)
-		{
-			if (!$request) $this->delay_subtask($task);
-			$this->add_subtasks($report->tasks);
-		}
-		elseif (!$request) $this->activate_task($task);
-	}
-	
-	// пока только для обычных задач! запросы удаляются все разом после обращения к БД.
-	// это единственное место, где задачи удаляются.
-	public function remove_subtask($task)
-	{
-		$this->deactivate_task($task);
-		$this->clear_delay($task);
-		unset($this->subtasks[$task->object_id]);
-	}
-	
-	public function add_subtasks($tasks)
-	{
-		if ($tasks instanceof Task) return $this->add_subtask($tasks);
-		
-		foreach ($tasks as $task)
-		{
-			$this->add_subtask($task);
-		}
-	}
-	
-	public function add_dependancies($deps, $task)
-	{
-		foreach ($deps as $dep)
-		{
-			$this->add_dependancy($dep, $task);
-		}
-	}
-	
-	// выделено в метод для того, чтобы наследуемые классы могли выполнять дополнительные действия в связи с этим.
-	public function add_dependancy($dep, $task)
-	{
-		$this->add_subtask($dep);
-	}
-	
-	// это единственное место, где задачи попадают в активные.
-	public function activate_task($task)
-	{
-		if ($task->completed()) return;
-		$this->clear_delay($task);
-		$this->active_tasks[$task->object_id]=$task;
-		// $this->debug(count($this->active_tasks).' ACTIVE TASKS of '.$this->object_id);
-	}
-	// это единственное место, где задачи выписываются из активных.
-	public function deactivate_task($task)
-	{
-		// $this->debug('DEACTIVATE, '.count($this->active_tasks).' ACTIVE TASKS NOW of '.$this->object_id);
-		unset($this->active_tasks[$task->object_id]);
-	}
-	
-	public $call_progressable=[];
-	// это единственное место, где задачи попадают в задержанные.
-	public function delay_subtask($task)
-	{
-		$this->deactivate_task($task);
-		$this->delayed_tasks[$task->object_id]=$task;
-		if ($task instanceof Process) $this->delayed_processes[$task->object_id]=$task;
-		if (empty($this->call_progressable[$task->object_id]))
-		{
-			$task->add_call($this->delay_resolved_call(), 'progressable');
-			$task->add_call($this->remove_completed_call(), 'complete');
-			$this->call_progressable[$task->object_id]=true;
-		}
-	}
-	// это единственное место, где задачи выписываются из задержанных.
-	public function clear_delay($task)
-	{
-		unset($this->delayed_tasks[$task->object_id]);
-		unset($this->delayed_processes[$task->object_id]);
-	}
-	
-	public $delay_resolved_call;
-	public function delay_resolved_call()
-	{
-		if ($this->delay_resolved_call===null)  $this->delay_resolved_call=function($task) { $this->activate_task($task); };
-		return $this->delay_resolved_call;
-	}
-	
-	public $remove_completed_call;
-	public function remove_completed_call()
-	{
-		if ($this->remove_completed_call===null)  $this->remove_completed_call=function($task) { $this->remove_completed($task); };
-		return $this->remove_completed_call;
 	}
 	
 	// может быть вызвано дважды, если задача уже попадала в задержанные. в таком случае второй раз ничего не происходит.
@@ -285,6 +221,76 @@ abstract class Process extends Task
 		if (!$task->completed()) return;
 		$this->log('removing_subtask', ['subtask'=>$task]);
 		$this->remove_subtask($task);
+	}
+	
+	public function remove_not_needed($task)
+	{
+		$this->remove_subtask($task);
+	}
+	
+	// некоторые процессы в таком случае могут извлечь дополнительные задачи и продолжить прогресс.
+	public function no_progress_possible()
+	{
+		$this->impossible('no_progress_possible');
+	}
+	
+	public function complete()
+	{
+		$this->log('to_complete');
+		
+		$try=0;
+		$unresolved=$this->subtasks;
+		$this->increase_need_by($this);
+		while ( ($this->progressable===true) && (++$try<=static::MAX_ITERATIONS) )
+		{
+			$this->log('new_cycle', ['try'=>$try]);
+			$this->max_standalone_progress();
+			if ($this->completed())	break;
+			elseif ($this->progressable===static::STATE_DEPENDS) $this->make_requests();
+			else { vdump($this); die ('UNKNOWN PROCESS STATE'); }
+		}
+		$this->decrease_need_by($this);
+		$this->finalize();
+	}
+	
+	public function make_requests()
+	{
+		$this->log('requests');
+		foreach ($this->requests as $request)
+		{
+			if (!$request->is_needed()) continue; // удалять из массива не требуется, они и так удалятся в рамках made_requests()
+			$this->log('request', ['request'=>$request]);
+			$request->max_standalone_progress();
+			if ($this->completed()) return;			
+			$this->log('subtask_report', ['subtask'=>$request]);
+		}
+		if ($this->progressable===static::STATE_DEPENDS) $this->made_requests();
+	}
+	
+	public function made_requests()
+	{
+		$this->progressable=true;
+		foreach ($this->delayed_processes as $process)
+		{
+			$process->made_requests();
+		}
+		$this->invalidate_report();
+		$this->requests=[];
+		$this->make_calls('progressable');
+	}
+	
+	public function create_report()
+	{
+		if ($this->progressable===static::STATE_DEPENDS)
+		{
+			if (empty($this->requests)) // и так должно быть обнаружено выше, но на всякий случай.
+			{
+				$this->finalize();
+				return parent::create_report();
+			}
+			return new \Report_dependant($this->requests);
+		}	
+		else return parent::create_report();
 	}
 	
 	public function register_dependancy($task, $identifier=null)
@@ -366,14 +372,7 @@ class Process_collection extends Process
 		if (array_key_exists($task->object_id, $this->goals)) return;
 		$this->increase_need_for($task); // обычно ничего не делает, потому что эта часть выполняется при создании объекта, когда у него самого нужда ещё 0.
 		$this->goals[$task->object_id]=$task; // гарантирует, что ключи соответствуют задачам.
-		$task->add_call
-		(
-			function($task)
-			{
-				$this->goal_completed($task);
-			},
-			'complete'
-		);			
+		$task->add_call( function($task) { $this->goal_completed($task); }, 'complete' );			
 	}
 	
 	public function goal_completed($task)
@@ -389,7 +388,7 @@ class Process_collection extends Process
 		$tasks=[];
 		foreach ($reports as $report)
 		{
-			if (! ($report instanceof Report_tasks)) die ('BAD GOALS REPORT');
+			if (! ($report instanceof \Report_tasks)) die ('BAD GOALS REPORT');
 			$tasks=array_merge($tasks, $report->tasks);
 		}
 		return new static($tasks);
@@ -409,6 +408,8 @@ class Process_collection extends Process
 
 class Process_collection_absolute extends Process_collection
 {
+	use Task_binary;
+	
 	public function register_goal($task)
 	{
 		if ($task->failed()) return false;
@@ -423,7 +424,7 @@ class Process_collection_absolute extends Process_collection
 }
 
 /*
-	этот процесс выполняет задачи в строгом порядке их добавления. кроме того, о завершении каждой задачи он шлёт вызов и, если получает знак, завершается. нужно для задач в духе "проверить 500 записей сложной проверкой, но остановитсья после 10 удачных проверок). если этот процесс не является верхним, то запросы к БД он передаёт наверх, но свои задачи решает сам.
+	следующий процесс выполняет задачи в строгом порядке их добавления. кроме того, о завершении каждой задачи он шлёт вызов и, если получает знак, завершается. нужно для задач в духе "проверить 500 записей сложной проверкой, но остановитьcя после 10 удачных проверок). если этот процесс не является верхним, то запросы к БД он передаёт наверх, но свои задачи решает сам.
 	
 	Логика такая:
 	1)		Выполнять первую цель и зависимости, которые она присылает.
@@ -433,6 +434,8 @@ class Process_collection_absolute extends Process_collection
 	2.1)	Если вторая цель выполнена (не важно, выполнены ли её зависимости и успешна ли она), сделать вызова о выполненной цели. Вторая цель может быть выполнена до первой! В вызове предоставляются сведения о порядке.
 	2.2)	Если вторая цель не выполнена, продолжить со следующей целью...
 	3) Если все цели достигли тупика и процесс ещё не готов, то сделать запросы в БД. Вернуться к п.1.
+	
+	Кроме того, задачи могут делиться на блоки. Задачи из следующего блока не выполняются, пока не завершены все задачи из предыдущего блока. Список задач делится на блоки размера $block_size, а если последний блок имеет не больше $block_bit задач, то он добавляется к последнему блоку. $block_bit считается как $block_paste процентов от обычного блока.
 */
 class Process_prioritized extends Process_collection
 {
@@ -440,7 +443,7 @@ class Process_prioritized extends Process_collection
 		DEFAULT_BLOCK_PASTE=0.2;
 		
 	public
-		$active_tasks, // незачем создавать массив, которым всё равно не будем пользоваться.
+		$active_tasks, // незачем создавать массив, которым всё равно не будет пользоваться.
 		
 		$ordered_goals=[],
 		$priority_by_task_id=[],
@@ -494,7 +497,7 @@ class Process_prioritized extends Process_collection
 		$result=parent::register_goal($task);
 		if (is_bool($result)) return $result; // истина означает успех процесса, а ложь - плохую задачу и невозможность двигать процесс.
 		
-		if ( ($unique) && (!($task instanceof Request)) ) // запросы к БД выполняются в обычном порядке.
+		if ( ($unique) && (!($task instanceof \Pokeliga\Retriever\Request)) ) // запросы к БД выполняются в обычном порядке.
 		{
 			$order=$this->next_goal_order++;
 			$this->ordered_goals[$order]=$task;
@@ -503,7 +506,7 @@ class Process_prioritized extends Process_collection
 	
 	public function determine_priorities()
 	{
-		$this->active_tasks=new SplPriorityQueue();
+		$this->active_tasks=new \SplPriorityQueue();
 		
 		$max_order=$this->next_goal_order-1;
 		// наивысший приоритет у нулевой цели, а низший - нулевой - у последней цели, порядок которой на единицу меньше, чем следующий свободный порядок. у целей порядок чётный, у их зависимостей - нечётный, на единицу больше, чем у соответствующей цели.
@@ -537,16 +540,16 @@ class Process_prioritized extends Process_collection
 		}
 	}
 	
-	public function add_dependancy($dep, $task)
+	public function add_task_dependancy($dep, $task)
 	{
-		if (!($dep instanceof Request))
+		if (!($dep instanceof \Pokeliga\Retriever\Request))
 		{
 			if (!array_key_exists($task->object_id, $this->priority_by_task_id)) die('BAD DEPENDANCY SOURCE');
 			$priority=$this->priority_by_task_id[$task->object_id];
-			if (array_key_exists($task->object_id, $this->goals)) $priority-=0.5; // если это зависимость 
+			if (array_key_exists($task->object_id, $this->goals)) $priority-=0.5; // приоритет целевых задач выше, чем у зависимостей.
 			$this->priority_by_task_id[$dep->object_id]=$priority;
 		}
-		parent::add_dependancy($dep, $task);
+		parent::add_task_dependancy($dep, $task);
 	}
 	
 	public function activate_task($task)
@@ -591,7 +594,6 @@ class Process_prioritized extends Process_collection
 			unset($this->blocks[$block_id]);
 			if ($block_id==$this->current_block)
 			{
-				reset($this->blocks);
 				$new_block=reset($this->blocks);
 				$this->current_block=key($this->blocks);
 				$this->apply_goals($new_block);

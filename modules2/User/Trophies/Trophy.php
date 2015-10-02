@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 class Trophy extends EntityType
 {
 	static
@@ -21,13 +23,13 @@ class Trophy_basic extends Aspect
 		[
 			'blueprint'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'TrophyBlueprint',
 				'import'=>['public', 'trophy_type']
 			],
 			'owner'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User',
 			],
 			'date_received'=>

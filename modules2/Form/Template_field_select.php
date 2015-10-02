@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 /*
 #################################
@@ -34,7 +35,7 @@ class Template_field_select extends Template_field implements Template_field_var
 	
 	public function resolve_class(&$final=true)
 	{
-		if ($this->value instanceof Value_searchable_options) return Template_field_select_searchable::copy_arguments($this);
+		if (duck_instanceof($this->value, '\Pokeliga\Data\Value_searchable_options')) return Template_field_select_searchable::copy_arguments($this);
 		return $this;
 	}
 	
@@ -54,11 +55,11 @@ class Template_field_select extends Template_field implements Template_field_var
 			{
 				$main_select=static::$options_by_group[$this->options_group()];
 				if ($main_select->completed()) return $this->advance_step();
-				return $this->sign_report(new Report_task($main_select));
+				return $this->sign_report(new \Report_task($main_select));
 			}
 			else $this->reserve_options();
 			$options=$this->options(false);
-			if ($options instanceof Report) return $options;
+			if ($options instanceof \Report) return $options;
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_REQUEST_OPTIONS+1)
@@ -123,7 +124,7 @@ class Template_field_select extends Template_field implements Template_field_var
 		if ($code==='selected_options')
 		{
 			$current=$this->get_selected_value();
-			if ($current instanceof Report_impossible) $template=$this->first_option($line);
+			if ($current instanceof \Report_impossible) $template=$this->first_option($line);
 			elseif (is_array($current))
 			{
 				$template=[];
@@ -134,13 +135,13 @@ class Template_field_select extends Template_field implements Template_field_var
 				$template=Template_composed_preset::with_list($template, $line);
 			}
 			else $template=$this->option_by_value($current, $line);
-			if ($template instanceof Report_impossible) return '';
+			if ($template instanceof \Report_impossible) return '';
 			return $template;
 		}
 		if ($code==='count')
 		{
 			$options=$this->options(false);
-			if ($options instanceof Report_task)
+			if ($options instanceof \Report_task)
 			{
 				$callback=function() use ($code, $line)
 				{
@@ -148,18 +149,18 @@ class Template_field_select extends Template_field implements Template_field_var
 				};
 				return Task_delayed_call::with_call($callback, $options->task);
 			}
-			if ($options instanceof Report_impossible) return $options;
-			if ($options instanceof Report) die('BAD COUNT REPORT');
+			if ($options instanceof \Report_impossible) return $options;
+			if ($options instanceof \Report) die('BAD COUNT REPORT');
 			
 			if (is_array($options)) return count($options);
-			return $this->sign_report(new Report_impossible('bad_options'));
+			return $this->sign_report(new \Report_impossible('bad_options'));
 		}
 		if ($code==='select_id') return $this->select_id;
 		if ($code==='options_group') return $this->options_group();
 		if ($code==='selected_value')
 		{
 			$selected=$this->get_selected_value();
-			if ($selected instanceof Report_impossible) return '';
+			if ($selected instanceof \Report_impossible) return '';
 			elseif (is_array($selected)) return implode(',', $selected);
 			return $selected;
 		}
@@ -172,7 +173,7 @@ class Template_field_select extends Template_field implements Template_field_var
 		if ($this->mode===static::MODE_CUSTOM) return;
 		if ($this->in_value_model('options_group')) return $this->value_model_now('options_group');
 		if ($this->in_value_model('id_group')) return $this->value_model_now('id_group');
-		if ($this->value instanceof Value_provides_options) return $this->value_model_now('type');
+		if (duck_instanceof($this->value, '\Pokeliga\Data\Value_provides_options')) return $this->value_model_now('type');
 		return get_class($this->value->master).'_'.$this->value->code;
 	}
 	
@@ -228,7 +229,7 @@ class Template_field_select extends Template_field implements Template_field_var
 	public function option_by_value($value, $line=[])
 	{
 		$options=$this->options();
-		if (!array_key_exists($value, $options)) return $this->sign_report(new Report_impossible('no_option'));
+		if (!array_key_exists($value, $options)) return $this->sign_report(new \Report_impossible('no_option'));
 		
 		$template=$this->make_option_template($value, $options[$value], null, $line);
 		return $template;
@@ -254,7 +255,7 @@ class Template_field_select extends Template_field implements Template_field_var
 		if ($selected===null)
 		{
 			$current=$this->get_selected_value();
-			if ($current instanceof Report_impossible) $selected=false;
+			if ($current instanceof \Report_impossible) $selected=false;
 			else $selected=$value == $current;
 		}
 		$option_line['selected']=$selected;
@@ -270,18 +271,18 @@ class Template_field_select extends Template_field implements Template_field_var
 		if ($this->options===null)
 		{
 			$options=$this->make_options();
-			if ( ($now) && ($options instanceof Report_task) )
+			if ( ($now) && ($options instanceof \Report_task) )
 			{
 				$options->complete();
 				$options=$this->make_options(); // теперь задача должна быть выполнена.
 			}
-			if ($options instanceof Report_task)
+			if ($options instanceof \Report_task)
 			{
-				if ($now) return $this->sign_report(new Report_impossible('impossible_options'));
+				if ($now) return $this->sign_report(new \Report_impossible('impossible_options'));
 				return $options;
 			}
-			if ($options instanceof Report_tasks) die ('BAD OPTIONS 1');
-			if ($options instanceof Report_impossible) $options=[0=>'Ошибка!'];
+			if ($options instanceof \Report_tasks) die ('BAD OPTIONS 1');
+			if ($options instanceof \Report_impossible) $options=[0=>'Ошибка!'];
 			$this->options=$options;
 		}
 		if ($this->options===null) { vdump($value); die('NO OPTIONS'); }
@@ -291,17 +292,17 @@ class Template_field_select extends Template_field implements Template_field_var
 	public function make_options()
 	{
 		if ($this->in_value_model('select_options')) return $this->value_model('select_options');
-		elseif ($this->value instanceof Value_provides_titled_options) $options=$this->value->titled_options($this->line);
+		elseif (duck_instanceof($this->value, '\Pokeliga\Data\Value_provides_titled_options')) $options=$this->value->titled_options($this->line);
 		elseif ($this->in_value_model('options'))
 		{
 			$options=$this->value_model('options');
-			if ($options instanceof Report) return $options;
+			if ($options instanceof \Report) return $options;
 			return array_combine($options, $options);
 		}
-		elseif ( $this->value instanceof Value_provides_options) $options=$this->value->options($this->line);
+		elseif (duck_instanceof($this->value, '\Pokeliga\Data\Value_provides_options')) $options=$this->value->options($this->line);
 		
-		if ($options===null) return $this->sign_report(new Report_impossible('no_options'));
-		if ($options instanceof Report) return $options;
+		if ($options===null) return $this->sign_report(new \Report_impossible('no_options'));
+		if ($options instanceof \Report) return $options;
 		
 		if ($this->in_value_model('prepend_options')) $options=array_merge($this->value_model_now('prepend_options'), $options);
 		if ($this->in_value_model('append_options')) $options=array_merge($options, $this->value_model_now('append_options'));
@@ -315,7 +316,7 @@ class Template_field_select extends Template_field implements Template_field_var
 			if (array_key_exists('selected', $this->line)) $result=$this->line['selected'];
 			elseif ( (!empty($this->value)) && ($this->value->in_value_model('selected')) ) $result=$this->value->value_model_now('selected');
 			elseif (!empty($this->field)) $result=$this->field->content_of($this->code);
-			else $result=$this->sign_report(new Report_impossible('no_selected_option'));
+			else $result=$this->sign_report(new \Report_impossible('no_selected_option'));
 			
 			$this->current_option=$result;
 		}
@@ -335,6 +336,7 @@ class Template_field_select extends Template_field implements Template_field_var
 	}
 }
 
+// FIX: зачем оно наследует Temlate_field, если ничего не вводит?
 class Template_field_option extends Template_field
 {
 	public
@@ -348,7 +350,7 @@ class Template_field_option extends Template_field
 		{
 			if (empty($this->line['title'])) return 'NO TITLE';
 			if (is_array($this->line['title'])) { vdump($this->line); vdump($this); die('ARRAY OPTION'); }
-			if ($this->line['title'] instanceof Task) return $this->line['title'];
+			if ($this->line['title'] instanceof \Pokeliga\Task\Task) return $this->line['title'];
 			return htmlspecialchars(mb_ucfirst($this->line['title']));
 		}
 		if ($code==='selected') return ( ($this->line['selected'])?('selected'):('') );
@@ -363,6 +365,7 @@ class Template_field_option extends Template_field
 ####################################################
 */
 
+// FIX: зачем оно наследует Temlate_field, если ничего не вводит?
 class Template_field_select_common_options extends Template_field
 {
 	public
@@ -424,8 +427,8 @@ class Template_field_select_searchable extends Template_field_select
 			else $this->reserve_options();
 			
 			$template=$this->default_found_options_template();
-			if ($template instanceof Report) return $template;
-			return $this->sign_report(new Report_task($template));
+			if ($template instanceof \Report) return $template;
+			return $this->sign_report(new \Report_task($template));
 		}
 		return parent::run_step();
 	}

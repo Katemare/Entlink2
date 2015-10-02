@@ -1,18 +1,19 @@
 <?
+namespace Pokeliga\Nav;
 
 // показывает стандартную страницу сайта в заданном дизайне.
-abstract class Page_view extends Page implements Templater, ValueHost
+abstract class Page_view extends Page implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost
 {
-	use ValueHost_standard
+	use \Pokeliga\Data\ValueHost_standard
 	{
-		ValueHost_standard::ValueHost_request as std_ValueHost_request;
+		\Pokeliga\Data\ValueHost_standard::ValueHost_request as std_ValueHost_request;
 	}
 
 	const
-		BREADCRUMBS_CLASS='PageBreadcrumbs',
-		PROCESSOR_CLASS='PageDisplay',
-		RENDER_CLASS='PageRender',
-		DEFAULT_ERROR_KEY='standard.unknown_error';
+		BREADCRUMBS_CLASS	='Pokeliga\Nav\PageBreadcrumbs',
+		PROCESSOR_CLASS		='Pokeliga\Nav\PageDisplay',
+		RENDER_CLASS		='Pokeliga\Nav\PageRender',
+		DEFAULT_ERROR_KEY	='standard.unknown_error';
 
 	public
 		$template_class=null,
@@ -95,7 +96,7 @@ abstract class Page_view extends Page implements Templater, ValueHost
 			if (is_array($cache_key))
 			{
 				if (!is_object($content)) $this->save_cache();
-				elseif ($content instanceof Task)
+				elseif ($content instanceof \Pokeliga\Task\Task)
 				{
 					$content->add_call
 					(
@@ -136,7 +137,7 @@ abstract class Page_view extends Page implements Templater, ValueHost
 		
 		$content=$this->content();
 		if (!is_object($content)) $save=$content;
-		elseif ( ($content instanceof Task) && ($content->completed()) ) $save=$content->resolution; // ERR: нет обработки ошибки, когда задача завершилась с ошибкой!
+		elseif ( ($content instanceof \Pokeliga\Task\Task) && ($content->completed()) ) $save=$content->resolution; // ERR: нет обработки ошибки, когда задача завершилась с ошибкой!
 		else die ('BAD CONTENT');
 		
 		if (array_key_exists('expires',  $cache_key)) $expires=$cache_key['expires'];
@@ -183,7 +184,7 @@ abstract class Page_view extends Page implements Templater, ValueHost
 	{
 		if ($this->input===null) return;
 		$value=$this->input->produce_value_soft($code);
-		if ($value instanceof Templater) return $value->template(null, $line);
+		if ($value instanceof \Pokeliga\Template\Templater) return $value->template(null, $line);
 	}
 	
 	// реализует интерфейс ValueHost
@@ -191,7 +192,7 @@ abstract class Page_view extends Page implements Templater, ValueHost
 	{
 		if ($this->input===null) return $this->ValueHost_request($code);
 		$value=$this->input->produce_value_soft($code);
-		if ($value instanceof Report_impossible) return $this->ValueHost_request($code);
+		if ($value instanceof \Report_impossible) return $this->ValueHost_request($code);
 		return $value->request();
 	}
 	
@@ -199,21 +200,22 @@ abstract class Page_view extends Page implements Templater, ValueHost
 	{
 		if ($this->input===null) return $this->ValueHost_value($code);
 		$value=$this->input->produce_value_soft($code);
-		if ($value instanceof Report_impossible) return $this->ValueHost_value($code);
+		if ($value instanceof \Report_impossible) return $this->ValueHost_value($code);
 		return $value->value();
 	}
 	
 	// STUB!
 	public function ValueHost_request($code)
 	{
-		if ($code==='admin') return $this->sign_report(new Report_resolution(Module_AdoptsGame::instance()->admin()));
+		if ($code==='admin') return $this->sign_report(new \Report_resolution(Module_AdoptsGame::instance()->admin()));
 		if ($code==='logged_in') return User::logged_in();
 		if ($code==='user') return User::current_user();
 		return $this->std_ValueHost_request($code); 
 	}
 	
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
+		if ( ($this->input!==null) && ($this->input->model_exists($track)) ) return $this->input->produce_value($track);
 		return $this->request($track);
 	}
 }
@@ -233,7 +235,7 @@ class PageRender extends PageProcessor
 	public function process()
 	{
 		$template=$this->page->get_master_template();
-		return $this->sign_report(new Report_task($template));
+		return $this->sign_report(new \Report_task($template));
 	}
 }
 
@@ -250,11 +252,11 @@ class PageDisplay extends PageProcessor
 	public function process()
 	{
 		$this->render=$this->page->get_render_task();
-		if  ($this->render instanceof Task)
+		if  ($this->render instanceof \Pokeliga\Task\Task)
 		{
 			if ($this->render->successful()) return $this->advance_step();
 			elseif ($this->render->failed()) return $render->report();
-			return $this->sign_report(new Report_task($this->render));
+			return $this->sign_report(new \Report_task($this->render));
 		}
 		return $this->advance_step();
 	}
@@ -263,7 +265,6 @@ class PageDisplay extends PageProcessor
 	{
 		if ($this->step===static::STEP_CHECK_REDIRECT)
 		{
-			if ($this->page->url_formation===Router::URL_UNKNOWN) return $this->advance_step();
 			$actual_url=$this->page->actual_url();
 			$proper_url=$this->page->url();
 			if ( ($actual_url!==$proper_url) && (is_string($redirect_to=$this->page->needs_redirect())) ) Router()->redirect($redirect_to);
@@ -272,7 +273,7 @@ class PageDisplay extends PageProcessor
 		elseif ($this->step===static::STEP_FINISH)
 		{
 			$render=null;
-			if ($this->render instanceof Task)
+			if ($this->render instanceof \Pokeliga\Task\Task)
 			{
 				if ($this->render->failed()) return $this->render->report();
 				$render=$this->render->resolution;
@@ -281,7 +282,7 @@ class PageDisplay extends PageProcessor
 			
 			$this->page->send_header();
 			echo $render;
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 		else return parent::run_step();
 	}
@@ -326,7 +327,7 @@ class Page_view_from_db extends Page_view
 		
 	public function setup_master_template($template)
 	{
-		if ( ($template instanceof Template_from_db) && ($this->master_db_key!==null) )  $template->db_key=$this->master_db_key;
+		if ( ($template instanceof \Pokeliga\Template\Template_from_db) && ($this->master_db_key!==null) )  $template->db_key=$this->master_db_key;
 		parent::setup_master_template($template);
 	}
 	
@@ -391,11 +392,11 @@ class PageRender_from_db extends PageRender
 	{
 		if ($this->step===static::STEP_PRE_REQUEST_TEMPLATE_CACHE)
 		{
-			if ($this->page->error!==false) return $this->advance_step(static::STEP_PROCESS);
+			if ($this->page->error!==null) return $this->advance_step(static::STEP_PROCESS);
 			$key=$this->template_cache_key();
 			if ($key===null) return $this->advance_step(static::STEP_PROCESS);
 			$this->cached_templates_task=Task_retrieve_cache::with_cache_key($key);
-			return $this->sign_report(new Report_task($this->cached_templates_task));
+			return $this->sign_report(new \Report_task($this->cached_templates_task));
 		}
 		elseif ($this->step===static::STEP_PRE_REQUEST_TEMPLATES)
 		{
@@ -405,16 +406,16 @@ class PageRender_from_db extends PageRender
 			
 			$this->cached_templates=$result;
 			$report=$this->templates_request()->get_data_set($this->cached_templates);
-			if ($report instanceof Report_final) return $this->advance_step();
+			if ($report instanceof \Report_final) return $this->advance_step();
 			return $report;
 		}
 		elseif ($this->step===static::STEP_SAVE_TEMPLATE_CACHE)
 		{
-			if (empty($this->cached_templates_task)) return $this->sign_report(new Report_success());
+			if (empty($this->cached_templates_task)) return $this->sign_report(new \Report_success());
 			
 			$used_templates=array_keys($this->templates_request()->data);
 			sort($used_templates);
-			if ($used_templates==$this->cached_templates) return $this->sign_report(new Report_success());
+			if ($used_templates==$this->cached_templates) return $this->sign_report(new \Report_success());
 			
 			$this->cached_templates=array_unique(array_merge($this->cached_templates, $used_templates));
 			sort($this->cached_templates);
@@ -531,7 +532,7 @@ trait Template_page_trifold
 	}
 }
 
-class Template_composed_appended extends Template_composed
+class Template_composed_appended extends \Pokeliga\Template\Template_composed
 {
 	public $content_checked=false;
 
@@ -540,7 +541,7 @@ class Template_composed_appended extends Template_composed
 		if ($this->content_checked===false)
 		{
 			$content=$this->page->content();
-			if ( ($content instanceof Task) && (!$content->completed()) ) $this->register_dependancy($content);
+			if ( ($content instanceof \Pokeliga\Task\Task) && (!$content->completed()) ) $this->register_dependancy($content);
 			$this->content_checked=true;
 			return;
 		}
@@ -554,7 +555,7 @@ class Template_composed_appended extends Template_composed
 }
 
 // старшый шаблон страницы, берущий свой текст из БД.
-class Template_page_from_db extends Template_from_db implements Template_page
+class Template_page_from_db extends \Pokeliga\Template\Template_from_db implements Template_page
 {
 	use Template_page_trifold;
 	

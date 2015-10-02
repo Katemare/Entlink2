@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\Form;
+
 interface FieldSet_provides_entity
 {
 	public function entity();
@@ -22,13 +24,13 @@ trait FieldSet_about_entity
 	public function create_valid_processor()
 	{
 		$entity=$this->entity();
-		if ($entity instanceof Report_impossible) return $entity;
+		if ($entity instanceof \Report_impossible) return $entity;
 		$entity=$this->prepare_entity($entity);
-		if ($entity instanceof Report) return $entity;
+		if ($entity instanceof \Report) return $entity;
 		
 		$report=$entity->save();
-		if ($report instanceof Report_final) return $report;
-		elseif ($report instanceof Report_task) return $report->task;
+		if ($report instanceof \Report_final) return $report;
+		elseif ($report instanceof \Report_task) return $report->task;
 		else die('BAD TASK');
 	}
 	
@@ -57,13 +59,13 @@ trait FieldSet_about_entity
 			if (!array_key_exists('for_entity', $model)) continue;
 			$value=$this->produce_value($code);
 			$content=$value->content();
-			if ($content instanceof Report_impossible) continue; // закончи и не нужно было: к данномому моменту все проверки уже выполнены, и если мы дошли сюда, то всё нормально.
+			if ($content instanceof \Report_impossible) continue; // закончи и не нужно было: к данномому моменту все проверки уже выполнены, и если мы дошли сюда, то всё нормально.
 			
 			if ( (array_key_exists('convert', $model)) && (array_key_exists('for_entity', $model['convert'])) )
 			{
 				$args=$model['convert']['for_entity'];
 				$keyword=array_shift($args);
-				$converter=Converter::with_args($keyword, $content, $args);
+				$converter=Convert::with_args($keyword, $content, $args);
 				$converter->complete();	// конвертеры обычно не требуют запросов в БД, так что ничего страшного, что они выполняются накатом.
 				if ($converter->failed()) continue;
 				$content=$converter->resolution;
@@ -92,7 +94,7 @@ trait Form_edit_entity
 	public function create_entity()
 	{
 		$id=$this->entity_db_id();
-		if ($id instanceof Report) return $id;
+		if ($id instanceof \Report) return $id;
 		return $this->pool()->entity_from_db_id($id, $this->id_group);
 	}
 	
@@ -106,7 +108,7 @@ trait Form_edit_entity
 		$task->field=$this;
 		$task->codes=$codes;
 		$task->rewrite=$rewrite;
-		return $this->sign_report(new Report_task($task));
+		return $this->sign_report(new \Report_task($task));
 	}
 	
 	public function session_name()
@@ -139,6 +141,95 @@ trait Form_edit_entity_simple
 		}
 		else return $this->page->entity_id(); // STUB
 	}
+}
+
+trait Form_confirm
+{
+	public function supply_confirm_model()
+	{
+		static $modify_model=
+		[
+			'yes'=>
+				[
+					'type'=>'bool',
+					'template'=>'checkbox',
+					'default_for_display'=>false,
+					'auto_invalid'=>[false]
+				]
+		];
+		$this->model=array_merge($this->model, $modify_model);
+		if (!empty($this->input_fields)) $this->input_fields[]='yes';
+	}
+}
+
+trait Form_deletes_entity
+{
+	// используется с Form_edit_entity и Multistage_input
+		
+	public function supply_delete_model()
+	{
+		static $modify_model=
+		[
+			'delete'=>
+			[
+				'type'=>'bool',
+				'template'=>'checkbox',
+				'default_for_display'=>false
+			],
+			'delete2'=>
+			[
+				'type'=>'bool',
+				'template'=>'checkbox',
+				'default_for_display'=>false,
+				'auto_invalid'=>[false]
+			]
+		];
+		if (!array_key_exists(static::STAGE_EDIT, $this->model_stages)) $this->model_stages[static::STAGE_EDIT=array_keys($this->model);;
+		
+		$this->model=array_merge($this->model, $modify_model);
+		
+		if (!array_key_exists(static::STAGE_INIT, $this->model_stages)) $this->model_stages[static::STAGE_INIT]=['submit'];
+		if (!array_key_exists(static::STAGE_DELETE, $this->model_stages)) $this->model_stages[static::STAGE_DELETE]=['delete', 'delete2'];
+		if (empty($this->input_fields)) $this->input_fields=$this->model_stages[static::STAGE_INIT];
+	}
+	
+	public function update_delete_subfields()
+	{
+		if ($this->model_stage===static::STAGE_INIT)
+		{
+			if ($this->content_of('submit')==='delete') return $this->change_model_stage(static::STAGE_DELETE);
+			else return $this->change_model_stage(static::STAGE_EDIT);
+		}
+	}
+	
+	public function create_delete_processor()
+	{
+		if ($this->model_stage===static::STAGE_DELETE)
+		{
+			if ($this->content_of('delete')!==true) return $this->sign_report(new \Report_impossible('delete_not_approved'));
+			if ($this->content_of('delete2')!==true) return $this->sign_report(new \Report_impossible('delete_not_approved'));
+			
+			if ($this->entity()->my_right('delete')!==true) return $this->sign_report(new \Report_impossible('no_delete_right'));
+			
+			if (!$this->entity()->exists()) $this->redirect_to_list();
+			
+			// STUB! сущность сама должна знать, как себя удалять.
+			$queries=$this->delete_queries();
+			foreach ($queries as $query)
+			{
+				$result=Retriever()->run_query($query);
+				if ($result instanceof \Report) return $result;
+			}			
+			$this->redirect_to_list();
+			
+			// до этой строчки не должно дойти.
+			return $this->sign_report(new \Report_success());
+		}
+		// если удаление не потребовалось, возвращает null.
+	}
+	
+	public abstract function delete_queries();
+	public abstract function redirect_to_list();
 }
 
 abstract class Form_entity extends Form implements FieldSet_provides_entity
@@ -202,9 +293,9 @@ class Task_save_entity_from_fieldset extends Task_for_fieldset
 		{
 			if ($this->entity!==null) return $this->advance_step();
 			$entity=$this->inputset->entity();
-			if ($entity instanceof Report_impossible) return $entity;
+			if ($entity instanceof \Report_impossible) return $entity;
 			$entity=$this->inputset->prepare_entity($entity);
-			if ($entity instanceof Report) return $entity;
+			if ($entity instanceof \Report) return $entity;
 			
 			$this->entity=$entity;
 			return $this->advance_step();
@@ -222,18 +313,18 @@ class Task_save_entity_from_fieldset extends Task_for_fieldset
 				$this->changed_values[]=$value->code;
 				
 				$result=$this->test_entity->request($value->code);
-				if ($result instanceof Report_impossible) return $result;
-				if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+				if ($result instanceof \Report_impossible) return $result;
+				if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_MATCH_ENTITY)
 		{
 			foreach ($this->changed_values as $code)
 			{
 				$test_value=$this->test_entity->value($code);
-				if ($test_value instanceof Report_impossible) return $test_value;
+				if ($test_value instanceof \Report_impossible) return $test_value;
 				$matched_value=$this->entity->value($code);
 				if ($test_value===$matched_value) $this->entity->dataset->produce_value($code)->save_changes=false;
 				// FIX: можно было бы использовать value_object, но такой запрос нуждается в оптимизации, и на данном этапе мы точно знаем, что значения есть.
@@ -243,8 +334,8 @@ class Task_save_entity_from_fieldset extends Task_for_fieldset
 		elseif ($this->step===static::STEP_SAVE_ENTITY)
 		{
 			$report=$this->entity->save();
-			if ($report instanceof Report_task) $this->final=$report->task;
-			elseif ($report instanceof Report_tasks) die ('BAD SAVE REPORT');
+			if ($report instanceof \Report_task) $this->final=$report->task;
+			elseif ($report instanceof \Report_tasks) die ('BAD SAVE REPORT');
 			return $report;
 		}
 		elseif ($this->step===static::STEP_FINISH)
@@ -294,10 +385,10 @@ class Task_fill_fieldset_from_entity extends Task_for_entity
 				}
 				$this->entity_source[$code]=$source_code;
 				$report=$this->entity->request($source_code);
-				if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+				if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 			}
 			
-			if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_CONVERT)
@@ -305,7 +396,7 @@ class Task_fill_fieldset_from_entity extends Task_for_entity
 			foreach ($this->entity_source as $code=>$source_code)
 			{
 				$content=$this->entity->value($source_code);
-				if ($content instanceof Report_impossible)
+				if ($content instanceof \Report_impossible)
 				{
 					unset($this->entity_source[$code]);
 					$this->codes_left[]=$code;
@@ -316,12 +407,12 @@ class Task_fill_fieldset_from_entity extends Task_for_entity
 				{
 					$args=$model['convert']['from_entity'];
 					$keyword=array_shift($args);
-					$converter=Converter::with_args($keyword, $content, $args);
+					$converter=Convert::with_args($keyword, $content, $args);
 					$this->converters[$code]=$converter;
 				}
 			}
 			if (empty($this->converters)) return $this->advance_step();
-			else return $this->sign_report(new Report_tasks($this->converters));
+			else return $this->sign_report(new \Report_tasks($this->converters));
 		}
 		elseif ($this->step===static::STEP_SET)
 		{
@@ -332,7 +423,7 @@ class Task_fill_fieldset_from_entity extends Task_for_entity
 				{
 					$converter=$this->converters[$code];
 					$report=$converter->report();
-					if ($report instanceof Report_impossible)
+					if ($report instanceof \Report_impossible)
 					{
 						unset($this->entity_source[$code]);
 						$this->codes_left[]=$code;
@@ -349,8 +440,14 @@ class Task_fill_fieldset_from_entity extends Task_for_entity
 		elseif ($this->step===static::STEP_STANDARD_DEFAULTS)
 		{
 			$this->field->fill_defaults_from_model($this->codes_left, $this->rewrite);
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 	}
+}
+
+// форма для быстрого удаления сущности методом ссылки.
+abstract class Form_delete_entity extends Form_entity
+{
+	// WIP
 }
 ?>

@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 class FieldSet_list extends FieldSet_sub
 {
@@ -8,6 +9,7 @@ class FieldSet_list extends FieldSet_sub
 	}
 	
 	const
+		ORD_PREFIX='_',
 		SUBFIELDS_CODE='subfields',
 		LIST_ID_CODE='list_id',
 		MAX_CODE='max',
@@ -66,12 +68,12 @@ class FieldSet_list extends FieldSet_sub
 		if (array_key_exists('max', $this->super_model)) $this->model['__count']['max']=$this->super_model['max'];
 		
 		$this->model[static::BASE_KEY]=$this->make_base_model();
-		if ($this->model[static::BASE_KEY] instanceof Report_impossible) { vdump($this); die ('NO BASE MODEL'); }
+		if ($this->model[static::BASE_KEY] instanceof \Report_impossible) { vdump($this); die ('NO BASE MODEL'); }
 		
 		$this->model[static::EMPTY_KEY]=$this->model[static::BASE_KEY];
 		$this->model[static::EMPTY_KEY]['name']='%ord'.$this->list_id.'%';
 		if (empty($this->model[static::EMPTY_KEY]['prefix'])) $this->model[static::EMPTY_KEY]['prefix']='';
-		$this->model[static::EMPTY_KEY]['prefix'].='%ord'.$this->list_id.'%';
+		$this->model[static::EMPTY_KEY]['prefix'].=static::ORD_PREFIX.'%ord'.$this->list_id.'%';
 	}
 	
 	public function is_fixed()
@@ -102,7 +104,7 @@ class FieldSet_list extends FieldSet_sub
 				'fieldset_type'=>$this->value_model_now('entry_fieldset_type')
 			];
 		}
-		else return $this->sign_report(new Report_impossible('no_base_model'));
+		else return $this->sign_report(new \Report_impossible('no_base_model'));
 		return $model;
 	}
 	
@@ -114,7 +116,7 @@ class FieldSet_list extends FieldSet_sub
 	public function model($code, $soft=false)
 	{
 		$result=parent::model($code, true);
-		if (!($result instanceof Report_impossible)) return $result;
+		if (!($result instanceof \Report_impossible)) return $result;
 		
 		if ($this->is_list_code($code))
 		{
@@ -130,7 +132,7 @@ class FieldSet_list extends FieldSet_sub
 	{
 		$model=$this->model[static::BASE_KEY];
 		unset($model['name']);
-		$model['prefix']=$ord; // применяется в FieldSet_sub
+		$model['prefix']=static::ORD_PREFIX.$ord; // применяется в FieldSet_sub
 		return $model;
 	}
 	
@@ -170,13 +172,13 @@ class FieldSet_list extends FieldSet_sub
 			$result[$x]=$this->content_of($x);
 		}
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
 	{		
 		$list_set=$this->extract_list($content);
-		if ($list_set instanceof Report) return Report;
+		if ($list_set instanceof \Report) return \Report;
 		
 		$list_set[static::COUNT_KEY]=count($list_set);
 		if (array_key_exists($key=static::EMPTY_KEY, $content)) $list_set[$key]=$content[$key];
@@ -185,8 +187,8 @@ class FieldSet_list extends FieldSet_sub
 	
 	public function extract_list($content)
 	{
-		if ($content instanceof EntitySet) $content=$content->values; // FIX: и другие типы ValueSet'ов?
-		if (!is_array($content)) return $this->sign_report(new Report_impossible('bad_content'));
+		if ($content instanceof \Pokeliga\Entity\EntitySet) $content=$content->values; // FIX: и другие типы ValueSet'ов?
+		if (!is_array($content)) return $this->sign_report(new \Report_impossible('bad_content'));
 		
 		$list=[];
 		for ($x=0; array_key_exists($x, $content); $x++)
@@ -207,7 +209,7 @@ class FieldSet_list extends FieldSet_sub
 		elseif ($this->is_list_code($code)) $this->model($code); // создаёт модель.
 		
 		$template=parent::template($code, $line);
-		if ( ( ($this->is_list_code($code)) || ($code===static::EMPTY_KEY)) && ($template instanceof Template) )
+		if ( ( ($this->is_list_code($code)) || ($code===static::EMPTY_KEY)) && ($template instanceof \Pokeliga\Template\Template) )
 		{
 			$container=$this->field_container($template, $code);
 			return $container;
@@ -256,12 +258,12 @@ class FieldSet_list extends FieldSet_sub
 	public function populate_subfields($line=[])
 	{
 		$count=$this->content_of(static::COUNT_KEY); // число уже было запрошено в предыдущем методе.
-		if ($count instanceof Report_impossible) return ['NO COUNT'];
+		if ($count instanceof \Report_impossible) return ['NO COUNT'];
 		$templates=[];
 		for ($x=0; $x<$count; $x++)
 		{
 			$template=$this->template($x, $line);
-			if (($template===null) || ($template instanceof Report_impossible)) return $this->sign_report(new Report_impossible('bad_subfield'));
+			if (($template===null) || ($template instanceof \Report_impossible)) return $this->sign_report(new \Report_impossible('bad_subfield'));
 			$templates[]=$template;
 		}
 		return $templates;
@@ -287,7 +289,7 @@ class FieldSet_list extends FieldSet_sub
 		if ($field===false)
 		{
 			$field=InputSet::instant_fill('field', 'keyword');
-			if ($field instanceof Report_impossible) $field=null;
+			if ($field instanceof \Report_impossible) $field=null;
 		}
 		if ($field===null) return $this->main_template();
 		else return $this->template($field);
@@ -361,7 +363,7 @@ class FieldSet_multiselect extends FieldSet_list
 	public function make_base_model()
 	{
 		$model=parent::make_base_model();
-		if ($model instanceof Report_impossible) $model=$this->fallback_base_model();
+		if ($model instanceof \Report_impossible) $model=$this->fallback_base_model();
 		if (!array_key_exists('template', $model)) $model['template']=static::DEFAULT_ENTRY_TEMPLATE;
 		return $model;
 	}
@@ -388,7 +390,7 @@ class FieldSet_slugselect extends FieldSet_multiselect
 	public function set($content, $source_code=Value::BY_OPERATION)
 	{
 		$result=parent::set($content, $source_code);
-		if ($result instanceof Report) return $result;
+		if ($result instanceof \Report) return $result;
 		
 		$count=$this->content_of(static::COUNT_KEY);
 		$list=[];

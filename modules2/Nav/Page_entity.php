@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Nav;
 
 interface Page_entity
 {
@@ -33,7 +34,7 @@ trait Page_entity_specific
 	public function entity_id()
 	{
 		$entity=$this->entity();
-		if ($entity instanceof Report_impossible) return $entity;
+		if ($entity instanceof \Report_impossible) return $entity;
 		return $entity->db_id;
 	}
 	
@@ -42,15 +43,15 @@ trait Page_entity_specific
 		$value=$this->input->produce_value($this->entity_input_field);
 		if ($value->has_state(Value::STATE_FAILED)) $entity=$this->entity_by_default();
 		else $entity=$value->get_entity();
-		if (empty($entity)) return $this->sign_report(new Report_impossible(static::ERROR_NO_ENTITY));
-		if (!$entity->exists()) return $this->sign_report(new Report_impossible(static::ERROR_BAD_ENTITY));
+		if (empty($entity)) return $this->sign_report(new \Report_impossible(static::ERROR_NO_ENTITY));
+		if (!$entity->exists()) return $this->sign_report(new \Report_impossible(static::ERROR_BAD_ENTITY));
 		return $entity;
 	}
 	
 	public function analyze_input()
 	{
 		$entity=$this->entity();
-		if ($entity instanceof Report_impossible) return $this->record_error(reset($entity->errors));
+		if ($entity instanceof \Report_impossible) return $this->record_error(reset($entity->errors));
 		if ( ($validate=$this->valid_entity($entity))!==true) return $this->record_error($validate);
 		return $this->advance_step();
 	}
@@ -62,7 +63,7 @@ trait Page_entity_specific
 
 	public function relevant_module()
 	{
-		if (($result=parent::relevant_module()) instanceof Module) return $result;
+		if (($result=parent::relevant_module()) instanceof \Pokeliga\Entlink\Module) return $result;
 		$entity=$this->entity();
 		if (empty($entity)) return;
 		$type=$entity->type;

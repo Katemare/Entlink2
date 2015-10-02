@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 interface Template_field_on_failure
 {
@@ -19,12 +20,9 @@ interface Template_field_variant_class
 	public function resolve_class(&$final=true); // подбирает другой класс шаблона в зависимости аргументов.
 }
 
-class Template_field extends Template_from_db implements ValueModel, ValueLink
+class Template_field extends \Pokeliga\Template\Template_from_db implements \Pokeliga\Data\ValueModel, \Pokeliga\Data\ValueLink
 {
-	use Prototyper, ValueModel_from_link;
-
-	static
-		$prototype_class_base='Template_field_';
+	use \Pokeliga\Entlink\Shorthand, \Pokeliga\Data\ValueModel_from_link;
 	
 	public
 		$field=null,
@@ -36,8 +34,16 @@ class Template_field extends Template_from_db implements ValueModel, ValueLink
 	{
 		$template=static::from_prototype($type_keyword);
 		$template->field=$field;
-		$template->code=$code;
-		$template->value=$field->produce_value($code);
+		if ($code instanceof \Pokeliga\Data\Value)
+		{
+			$template->value=$code;
+			$template->code=$template->value->code;
+		}
+		else
+		{
+			$template->code=$code;
+			$template->value=$field->produce_value($code);
+		}
 		$template->line=$line;
 		
 		$template=static::finalize_template($template);
@@ -103,7 +109,7 @@ class Template_field extends Template_from_db implements ValueModel, ValueLink
 			if (array_key_exists('value', $this->line)) return htmlspecialchars($this->line['value']);
 			$content=$this->value->for_input();
 			if (is_array($content)) { vdump($content); vdump($this); die('BAD ARRAY'); }
-			if ($content instanceof Report_impossible) return '';
+			if ($content instanceof \Report_impossible) return '';
 			if ( (empty($content)) && ($this->in_value_model('empty_to_display')) ) return $this->value_model_now('empty_to_display');
 			else return htmlspecialchars((string)$content);
 		}
@@ -153,7 +159,7 @@ class Template_field_input extends Template_field
 	}
 }
 
-class_alias('Template_field_input', 'Template_field_string');
+class_alias(__NAMESPACE__.'\Template_field_input', __NAMESPACE__.'\Template_field_string');
 
 class Template_field_input_line extends Template_field_input
 {
@@ -306,7 +312,7 @@ class Template_field_radio extends Template_field_input implements Template_fiel
 			elseif
 			(
 				(array_key_exists('value', $this->line)) &&
-				(!(($content=$this->value->content()) instanceof Report)) &&
+				(!(($content=$this->value->content()) instanceof \Report)) &&
 				($this->value->content()==$this->line['value'])
 			)
 				$checked=true;

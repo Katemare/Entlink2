@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 
 class File extends EntityType
 {

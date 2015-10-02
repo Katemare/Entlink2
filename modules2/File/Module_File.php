@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\File;
+
 class Module_File extends Module implements Templater
 {
 	use Module_autoload_by_beginning;
@@ -6,6 +8,14 @@ class Module_File extends Module implements Templater
 	
 	public
 		$name='File',
+		$class_shorthands=
+		[
+			'Pokeliga\Data\ValueType'=>
+			[
+				'coord', 'coord_x', 'coord_y', 'coords',
+				'dimension', 'width', 'height'
+			],
+		],
 		$quick_classes=
 		[
 			'File'=>'File',

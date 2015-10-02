@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 class User_awards extends Trophy_owner
 {	

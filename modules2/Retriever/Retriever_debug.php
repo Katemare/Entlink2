@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Retriever;
 
 trait Logger_Retriever
 {
-	use Logger;
+	use \Pokeliga\Entlink\Logger;
 	
 	public function log_domain() { return 'Retriever'; }
 

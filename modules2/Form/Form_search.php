@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 class Form_search extends Form
 {
@@ -91,10 +92,10 @@ class Form_search extends Form
 		$selector=Select_from_ids::for_value($results);
 		$selector->ids=$ids;
 		$result=$selector->master_fill(); // айди уже известны, обращений к БД не понадобится.
-		if (!($result instanceof Result_final)) $selector->complete();
+		if (!($result instanceof \Report_final)) $selector->complete();
 		$class=$this->results_template_class;
 		$template=$class::with_line($line);
-		if ( ($this->results_db_key!==null) && ($template instanceof Template_from_db) ) $template->db_key=$this->results_db_key;
+		if ( ($this->results_db_key!==null) && ($template instanceof \Pokeliga\Template\Template_from_db) ) $template->db_key=$this->results_db_key;
 		if ($template instanceof Template_search_results) $template->form=$this;
 		$this->erase_session();
 		return $template;
@@ -141,7 +142,7 @@ abstract class Task_process_search_form extends Task_for_fieldset
 			if ( (!$this->inputset->allows_exact_result) || ($field->content_of('mode')===$field::MODE_SEARCH) ) return $this->advance_step(static::STEP_REQUEST_COUNT);
 			
 			$this->exact_entity=$this->make_exact_entity();
-			if ( (empty($this->exact_entity)) || ($this->exact_entity instanceof Report_impossible) ) return $this->advance_step(static::STEP_REQUEST_COUNT);
+			if ( (empty($this->exact_entity)) || ($this->exact_entity instanceof \Report_impossible) ) return $this->advance_step(static::STEP_REQUEST_COUNT);
 			$result=$this->exact_entity->exists(false);
 			if ($result===true) return $this->advance_step();
 			if ($result===false) return $this->advance_step(static::STEP_REQUEST_COUNT);
@@ -195,7 +196,7 @@ abstract class Task_process_search_form extends Task_for_fieldset
 				'results_page'=>$this->page,
 				FieldSet::EXPIRY_KEY=>time()+FieldSet::DEFAULT_EXPIRY
 			]);
-			return $this->sign_report(new Report_resolution($this->ids));
+			return $this->sign_report(new \Report_resolution($this->ids));
 		}
 	}
 	
@@ -308,7 +309,7 @@ class Template_search_results extends Template_from_db
 	}
 }
 
-class Value_search extends Value_string
+class ValueType_search extends ValueType_string
 {
 	public
 		$min=1,

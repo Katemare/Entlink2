@@ -1,11 +1,12 @@
 <?
+namespace Pokeliga\Data;
 
 interface ValueLink // для объектов, связанных с одним значением.
 {
 	public function get_value();
 }
 
-interface ValueModel
+interface ValueModel // для объектов, поставляющих модель значения (не путать с моделью сущности, формы...)
 {
 	public function value_model($code=null, $strict=true);
 	
@@ -48,7 +49,7 @@ trait ValueModel_owner // для использования в объектах,
 		return $this->model;
 	}
 	
-	// возвращает значение; либо Report_task с задачей, в результате которой появляется значение; либо Report_impossible; либо, если значения в модели нет и установлено $srict, исключение (точнее, сейчас просто останов).
+	// возвращает значение; либо \Report_promise; либо \Report_impossible; либо, если значения в модели нет и установлено $srict, исключение (точнее, сейчас просто останов).
 	public function value_model($code=null, $strict=true)
 	{
 		$source=&$this->value_model_array();
@@ -56,26 +57,21 @@ trait ValueModel_owner // для использования в объектах,
 		if (!$this->in_value_model($code))
 		{
 			if ($strict) { vdump($this); vdump($this->value_model()); die ('BAD MODEL CODE: '.$code); }
-			return $this->sign_report(new Report_impossible('bad_model_code'));
+			return new \Report_impossible('bad_model_code', $this);
 		}
 		
 		$content=&$source[$code];
 		if (Compacter::recognize_mark($content)) $content=Compacter::by_mark_and_extract($this, $content);
 		// важно, что если компактер раскрывается в задачу, то в модели остаётся именно задача. при изменении зависимостей эту задачу следует сбросить, в противном случае мы можем работать с устаревшими данными. FIX: сейчас этого не делается.
-		if ($content instanceof Task)
-		{
-			if ($content->failed()) return $content->report();
-			if ($content->successful()) return $content->resolution;
-			return $this->sign_report(new Report_task($content));
-		}
+		if ($content instanceof \Pokeliga\Task\Task) return $content->resolution_or_promise();
 		return $content;
 	}
 	
-	// как предыдущее, но поскольку $strict не стоит, то в случае отсутствия значения возвращает Report_impossible. Кроме того, ответ в виде задачи также превращается в Report_impossible.
+	// как предыдущее, но поскольку $strict не стоит, то в случае отсутствия значения возвращает \Report_impossible. Кроме того, ответ в виде задачи также превращается в \Report_impossible.
 	public function value_model_soft($code)
 	{
 		$result=$this->value_model($code, false);
-		if ($result instanceof Report_tasks) return $this->sign_report(new Report_impossible('model_not_ready'));
+		if ($result instanceof \Report_delay) return new \Report_impossible('model_not_ready', $this);
 		return $result;
 	}
 	
@@ -83,13 +79,8 @@ trait ValueModel_owner // для использования в объектах,
 	public function value_model_now($code)
 	{
 		$result=$this->value_model($code, true);
-		if ($result instanceof Report_task)
-		{
-			$result->complete(); // здесь может быть неоптимальное выполнение задачи, поскольку оно делается без очереди запросов. не знаю, отмечать ли это где-то? предполагаю, что прибегать к компактеру в моделях следует только в валидаторах, рассчитанных обрабатывать отчёты.
-			if ($result->task->failed()) { vdump($code); vdump($this); die('VALUE MODEL UNAVAILABLE'); }
-			return $result->task->resolution;
-		}
-		elseif ($result instanceof Report_impossible) { vdump($code); vdump($this); die('VALUE MODEL UNAVAILABLE'); }
+		if ($result instanceof \Report_promise) $result=$result->now();
+		if ($result instanceof \Report_impossible) { vdump($code); vdump($this); die('VALUE MODEL UNAVAILABLE'); }
 		return $result;
 	}
 	
@@ -99,6 +90,7 @@ trait ValueModel_owner // для использования в объектах,
 	}
 }
 
+// для объектов, содержащих значение подобно Value (к примеру, это также сложные поля формы).
 interface ValueContent extends ValueModel
 {
 	public function set_state($state);
@@ -114,68 +106,68 @@ interface ValueContent extends ValueModel
 	public function is_valid();
 }
 
+// для объектов, поставляющих доступ ко множеству значений.
 interface ValueHost
-{
-	public function request($code); // возвращает Report_resolution со значением; Report_impossible при невозможности; Report_task с задачей, результатом которой станет значение.
+{	
+	public function request($code); // возвращает \Report_resolution со значением; \Report_impossible при невозможности; \Report_promise с задачей, результатом которой станет значение.
 	
-	public function value($code); // возвращает значение либо Report_impossible при невозможности.
+	public function value($code); // возвращает значение либо \Report_impossible при невозможности.
 }
 
+// для объектов, одновременно предоставляющих доступ ко множеству значенй и имеющих собственное значение; или предоставяющих значения по умолчанию.
+interface ValueHost_combo extends ValueHost
+{
+	// аргумент может быть равен null для двух целей: 1) запрос значения по умолчанию; 2) некоторые объекты одновременно сами являются значениями (принимают value() и request() без аргументом) и являются владельцами значений. это позволяет применить к ним данный интерфейс сразу, без промежуточного наследования.
+	
+	public function request($code=null);
+	
+	public function value($code=null);
+}
+
+// при использовании этой черты нужно определить только ValueHost_request для всех необходимых кодов.
 trait ValueHost_standard
 {
 	public function ValueHost_request($code)
 	{
-		return $this->sign_report(new Report_impossible('unknown_subvalue_code: '.$code));
+		return new \Report_impossible('unknown_subvalue_code: '.$code, $this);
 	}
 	
 	public function ValueHost_value($code)
 	{
 		$result=$this->ValueHost_request($code);
-		if ($result instanceof Request_task)
-		{
-			$task=$result->task;
-			$task->complete();
-			if ($task->failed()) return $task->report();
-			return $task->resolution;
-		}
-		elseif ($result instanceof Report_resolution) return $result->resolution;
-		elseif ($result instanceof Report_impossible) return $result;
-		else die ('BAD REQUEST REPORT');
+		if ($result instanceof \Report_promise) return $result->now();
+		else return $result->resolution();
 	}
 }
 
+// данное Value обеспечивает значения для опций выпадающего списка.
 interface Value_provides_options
 {
 	public function options($line=[]);
 }
 
+// данное Value обеспечивает не только значения для опций выпадающего списка, но и их заголовки.
 interface Value_provides_titled_options extends Value_provides_options
 {
 	public function titled_options($line=[]);
 }
 
-// в случае элемента формы select показывает специальный select с поиском, а результаты получает по API
+// данное Value позволяет делать поисковые запросы по API.
 interface Value_searchable_options
 {
 	public function API_search_arguments();
 	// возвращает аргументы, которые нужно передать к API, чтобы воспроизвести значение и определить круг поиска.
 
 	public function option_by_value($value, $line=[]);
+	// возвращает шаблон, отвечающий за опцию выпадающего списка (включая значение и заголовок).
 	
 	public function found_options_template($search=null);
 	// поисковая строка, которая вместе с моделью должна дать результаты поиска.
 }
 
-trait Value_searchable_entity
+interface ValueType_handles_fill
 {
-	public function option_by_value($value, $line=[])
-	{
-		$id_group=$this->value_model_now('id_group');
-		$entity=$this->pool()->entity_from_db_id($value, $id_group);
-		if (empty($entity)) return $this->sign_report(new Report_impossible('no_entity'));
-		
-		$template=Template_entity_option::for_entity($entity);
-		return $template;
-	}
+	public function detect_mode();
+	public function fill();
 }
 ?>

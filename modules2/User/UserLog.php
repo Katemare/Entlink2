@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // сведения о действиях пользователей в отношении других пользователей и работ.
 
 class UserLog extends EntityType
@@ -48,7 +50,7 @@ class UserLog_basic extends Aspect
 		[
 			'user'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User'
 			],
 			'action'=>
@@ -61,7 +63,7 @@ class UserLog_basic extends Aspect
 			],
 			'details'=>
 			[
-				'type'=>'serialized_array'
+				'type'=>'array'
 			]
 		],
 		$basic=true,
@@ -76,7 +78,7 @@ class UserLog_standard extends Aspect
 		[
 			'subject'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User',
 				'null'=>true,
 				'auto_valid'=>[null],

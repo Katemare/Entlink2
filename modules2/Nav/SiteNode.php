@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Nav;
 
 interface SiteNode
 {

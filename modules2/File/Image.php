@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 
 class Image extends File
 {
@@ -128,9 +129,9 @@ class File_image extends Aspect
 			$this->getimagesize=getimagesize($server_address);
 		}
 		
-		if ($this->getimagesize===false) return $this->sign_report(new Report_impossible('no_file'));
+		if ($this->getimagesize===false) return $this->sign_report(new \Report_impossible('no_file'));
 		if ($param===null) return $this->getimagesize;
-		if (!array_key_exists($param, $this->getimagesize)) return $this->sign_report(new Report_impossible('no_image_param'));
+		if (!array_key_exists($param, $this->getimagesize)) return $this->sign_report(new \Report_impossible('no_image_param'));
 		return $this->getimagesize[$param];
 	}
 	
@@ -166,15 +167,15 @@ class File_image extends Aspect
 }
 
 // необходимо для идентификации таких значений для особенной работы с ними.
-class Value_dimension extends Value_unsigned_int
+class ValueType_dimension extends ValueType_unsigned_int
 {
 }
 
-class Value_width extends Value_dimension
+class ValueType_width extends ValueType_dimension
 {
 }
 
-class Value_height extends Value_dimension
+class ValueType_height extends ValueType_dimension
 {
 }
 ?>

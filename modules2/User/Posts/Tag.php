@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // эти классы пока описывают метки, заданные модераторами. облако пользовательских меток требует другой системы.
 
 class Tag extends EntityType
@@ -44,7 +46,7 @@ class Tag_basic extends Aspect
 			[
 				'type'=>'title_array',
 				'keeper'=>'var_array',
-				'unique'=>true
+				'unique_array'=>true
 			]
 		],
 		$basic=true,

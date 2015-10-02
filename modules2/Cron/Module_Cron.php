@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\Cron;
+
 class Module_Cron extends Module implements Templater
 {
 	const

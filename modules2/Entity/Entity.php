@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\Entity;
+
 /*
 
 Логика новой модели такая. Часто бывает, что до доставания данных о сущности мы не можем наверняка сказать, что это за сущность - покемон, игрок, вид, комментарий, метка... - и, соответственно, какое у неё должно быть поведение, а зачастую даже в какой таблице искать данные. Мы также не можем заменить класс объекта или ссылки на этот объект всюду, где они имеются. В лучшем случае мы можем вложить во все сущности функционал посредника, который будет передавать запросы уточнённой, "настоящей" сущности, а это, как мне кажется, чревато.
@@ -9,11 +11,12 @@
 
 */
 
-load_debug_concern('Entity', 'Entity');
+load_debug_concern(__DIR__, 'Entity');
 
-class Entity implements Templater, ValueHost, Pathway, Template_context, Multiton_argument
+class Entity
+	implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway, \Pokeliga\Template\Template_context, \Pokeliga\Entlink\Multiton_argument
 {
-	use Object_id, Report_spawner, Caller_backreference, Logger_Entity, Context_self;
+	use \Pokeliga\Entlink\Object_id, \Pokeliga\Entlink\Caller_backreference, Logger_Entity, \Pokeliga\Template\Context_self;
 	
 	const
 		LINK_TEMPLATE='link',
@@ -77,7 +80,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	// сущность, у которой известен айди в БД, хотя его существование ещё следует проверить (и, возможно, уточнить тип).
 	public static function from_db_id($db_id, $id_group=null, $pool=null)
 	{
-		if ($db_id==0) return; // FIX: должно возращать Report_impossible, но нужно настроить всюду, чтобы понимало это.
+		if ($db_id==0) return; // FIX: должно возращать \Report_impossible, но нужно настроить всюду, чтобы понимало это.
 		
 		$entity=static::for_pool($id_group, $pool);
 		$entity->state=static::STATE_PROVIDED_ID;
@@ -118,6 +121,14 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		return $entity;	
 	}
 	
+	public static function create_virtual($id_group=null, $pool=null)
+	{
+		$entity=static::for_pool($id_group, $pool);
+		$entity->state=static::STATE_VIRTUAL;
+		$entity->setup();
+		return $entity;	
+	}
+	
 	public function setup()
 	{
 		$this->dataset=DataSet::for_entity($this);
@@ -131,7 +142,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function auto_type($force=false /* если истина, то выполняет автотипирование, даже если тип уже проставлен. */ )
 	{
 		if ( (!$force) && ($this->type!==null) ) return;
-		if ($this->id_group===null) { xdebug_print_function_stack(); die('NO ENTITY TYPE'); } // $type='EntityType_untyped';
+		if ($this->id_group===null) { die('NO ENTITY TYPE'); } // $type='EntityType_untyped';
 		else $type=$this->id_group;
 		$this->set_type($type);
 	}
@@ -170,15 +181,15 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		unset($this->aspects[$aspect_code]);
 	}
 	
-	// возвращает отчёт: Report_success - подтверждено и существует, либо не нуждается в подтверждении; Report_task - нужно выполнить эту задачу, чтобы подтвердить; Report_impossible - нельзя подтвердить или подтверждение провалено.
+	// возвращает отчёт: \Report_success - подтверждено и существует, либо не нуждается в подтверждении; \Report_task - нужно выполнить эту задачу, чтобы подтвердить; \Report_impossible - нельзя подтвердить или подтверждение провалено.
 	public function verify($now=true)
 	{
-		if ($this->state===static::STATE_FAILED) return $this->sign_report(new Report_impossible('failed_entity'));
-		elseif (!$this->is_to_verify()) return $this->sign_report(new Report_success()); // NEW, VIRTUAL
+		if ($this->state===static::STATE_FAILED) return new \Report_impossible('failed_entity', $this);
+		elseif (!$this->is_to_verify()) return new \Report_success($this); // NEW, VIRTUAL
 		elseif ($this->state===static::STATE_PROVIDED_ID) $result=$this->verify_provided_id();
 		elseif ($this->state===static::STATE_EXPECTED_ID) $result=$this->verify_expected_id();
 		else die ('UNEXPECTED ENTITY STATE II: '.$this->state);
-		if ( ($now) && ($result instanceof Report_tasks) )
+		if ( ($now) && ($result instanceof \Report_tasks) )
 		{
 			$result->complete();
 			$result=$result->report();
@@ -186,7 +197,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		return $result;
 	}
 	
-	// возвращает true, false или Report_tasks (если не $now). следует заметить, что данный метод назван как вопрос ("существуешь?"), а предыдущий - как команда ("подтвердись!").
+	// возвращает true, false или \Report_tasks (если не $now). следует заметить, что данный метод назван как вопрос ("существуешь?"), а предыдущий - как команда ("подтвердись!").
 	public function exists($now=true)
 	{
 		if ($this->state===static::STATE_VERIFIED_ID) return true;
@@ -195,8 +206,8 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		if ($this->is_to_verify())
 		{
 			$result=$this->verify($now);
-			if ($result instanceof Report_final) return $this->exists();
-			return $result; // Report_tasks
+			if ($result instanceof \Report_final) return $this->exists();
+			return $result; // \Report_tasks
 		}
 		die ('UNEXPECTED ENTITY STATE I: '.$this->state);
 	}
@@ -213,14 +224,14 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function verify_provided_id()
 	{
 		$basic_aspect=$this->get_aspect('basic');
-		$table=$basic_aspect::$default_table; // STUB: получение таблицы идентификатора должно быть реализовано иначе.
-		$data=Request_by_id::instance($table)->get_data_set($this->db_id);
-		if ($data instanceof Report_task)
+		$table=$basic_aspect->default_table();
+		$data=\Pokeliga\Retriever\Request_by_id::instance($table)->get_data_set($this->db_id);
+		if ($data instanceof \Report_task)
 		{
 			$task=Task_for_entity_verify_id::for_entity($this);
-			return $this->sign_report(new Report_task($task));
+			return new \Report_task($task, $this);
 		}
-		elseif ($data instanceof Report_impossible)
+		elseif ($data instanceof \Report_impossible)
 		{
 			$this->state=static::STATE_FAILED;
 			return $data;
@@ -228,7 +239,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		else
 		{
 			$this->verified();
-			return $this->sign_report(new Report_success());
+			return new \Report_success($this);
 		}
 	}
 	
@@ -241,7 +252,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function verify_expected_id()
 	{
 		if (is_null($this->provider)) die ('PROVIDER-LESS ID RECOVERY UNIMPLEMENTED');
-		if ($this->provider instanceof Task) return $this->sign_report(new Report_task($this->provider));
+		if ($this->provider instanceof \Pokeliga\Task\Task) return new \Report_task($this->provider, $this);
 		
 		if (is_string($this->provider)) $provider_code=$this->provider;
 		elseif (is_array($this->provider)) $provider_code=$this->provider[0];
@@ -251,7 +262,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		$provider->setup($this);
 		$this->provider=$provider;
 		$this->log('provider');
-		return $this->sign_report(new Report_task($provider));
+		return new \Report_task($provider, $this);
 	}
 	
 	public function receive_db_id($id)
@@ -288,7 +299,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	
 	public function has_db_id()
 	{
-		return !is_null($this->db_id); // может сработать в трёх состояниях: PROVIDED_ID, VERIFIED_ID и FAILED.
+		return $this->db_id!==null; // может сработать в трёх состояниях: PROVIDED_ID, VERIFIED_ID и FAILED.
 	}
 	
 	public function expects_db_id()
@@ -312,6 +323,11 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 			$this->state===static::STATE_VIRTUAL;
 	}
 	
+	public function is_failed()
+	{
+		return $this->state===static::STATE_FAILED;
+	}
+	
 	// FIX! похоже, эти методы не используются.
 	public function validate_request()
 	{
@@ -321,7 +337,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	public function validate()
 	{
 		$result=$this->validate_request();
-		if ($result instanceof Report_tasks)
+		if ($result instanceof \Report_tasks)
 		{
 			$process=$result->create_process();
 			$process->complete();
@@ -330,12 +346,14 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		return $result;
 	}
 	
-	public function set($value_code, $content, $source_code=Value::BY_OPERATION)
+	public function set($value_code, $content, $source_code=\Pokeliga\Data\Value::BY_OPERATION)
 	{
-		if ($this->pool->read_only()) die ('CANT SET IN READ-ONLY');
-		$value_object=$this->value_object($value_code);
-		if ($value_object instanceof Report_impossible) { vdump($value_code); die ('BAD VALUE CODE'); }
-		return $value_object->set($content, $source_code);
+		$this->dataset->set_value($value_code, $content, $source_code);
+	}
+	
+	public function set_by_array($data, $source_code=\Pokeliga\Data\Value::BY_OPERATION)
+	{
+		$this->dataset->set_by_array($data, $source_code);
 	}
 	
 	public function save()
@@ -355,7 +373,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 		if ($name===null) $name=static::LINK_TEMPLATE;
 		$args=[$name, $line];
 		$template=$this->type->resolve_call('template', $args);
-		if ($template instanceof Report_impossible) return;
+		if ($template instanceof \Report_impossible) return;
 		return $template;
 	}
 	
@@ -377,7 +395,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	}
 	
 	// для соответствия интерфейсу Pathway
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
 		return $this->type->follow_track($track);
 	}
@@ -432,9 +450,14 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	{
 		if (!($entity instanceof Entity)) return false;
 		if ($this->pool!==$entity->pool) return false;
-		if ($this->id_group!==$entity->id_group) return false;
+		if (!$this->in_id_group($id_group)) return false;
 		if ($this->db_id!==$entity->db_id) return false;
 		return true;
+	}
+	
+	public function in_id_group($id_group)
+	{
+		return $this->id_group===$id_group;
 	}
 	
 	public function deleted()
@@ -453,7 +476,7 @@ class Entity implements Templater, ValueHost, Pathway, Template_context, Multito
 	}
 }
 
-class Template_entity_link extends Template_from_db
+class Template_entity_link extends \Pokeliga\Template\Template_from_db
 {
 	public
 		$db_key='standard.entity_link';

@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Nav;
 
 class PageBreadcrumbs extends PageProcessor
 {

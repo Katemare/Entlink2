@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Retriever;
 
 // запросы этой группы преимущественно создаются фабрикой Request, к которой обращаются через требуемый класс запроса. Например, Request_all::count_instance(аргументы конструктора).
 abstract class Request_reuser extends Request
@@ -72,7 +73,7 @@ trait Request_reuser_capture_result
 {
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		$this->result=$result;
 		return true;
 	}
@@ -80,7 +81,7 @@ trait Request_reuser_capture_result
 	// хотя какой-нибудь Request_by_field в ответ на этот вызов отдаёт только соответствующие ключи, данный запрос использует механизмы подзапроса только для хранения ключей и формирования SQL-запроса, а возвращает всё.
 	public function compose_data()
 	{
-		if (!property_exists($this, 'result')) return $this->sign_report(new Report_impossible('no_data'));
+		if (!property_exists($this, 'result')) return $this->sign_report(new \Report_impossible('no_data'));
 		return $this->result;
 	}
 }
@@ -221,14 +222,14 @@ class Request_limited extends Request_ordered
 	
 	public function compose_data($limit=null)
 	{
-		if ($this->result instanceof Report_impossible) return $this->result;
-		if ($limit>$this->completed_limit) return $this->sign_report(new Report_impossible('limit_uncompleted'));
+		if ($this->result instanceof \Report_impossible) return $this->result;
+		if ($limit>$this->completed_limit) return $this->sign_report(new \Report_impossible('limit_uncompleted'));
 		return array_slice($this->result, 0, $limit);
 	}
 	
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		$this->completed_limit=$this->requested_limit;
 		if (empty($this->result)) $this->result=[];
 		$this->result=array_merge($this->result, $result);
@@ -268,15 +269,15 @@ class Request_page extends Request_ordered
 	
 	public function compose_data()
 	{
-		if ($this->result instanceof Report_impossible) return $this->result;
-		if (!$this->done) return $this->sign_report(new Report_impossible('page_uncompleted'));
+		if ($this->result instanceof \Report_impossible) return $this->result;
+		if (!$this->done) return $this->sign_report(new \Report_impossible('page_uncompleted'));
 		return $this->result;
 	}
 	
 	public function process_result($result)
 	{
 		$this->done=true;
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		$this->result=$result;
 		return true;
 	}
@@ -306,7 +307,7 @@ class Request_random extends Request_reuser
 	public function set_data()
 	{
 		$result=parent::set_data();
-		if ( ($result===true) && ($this->completed()) ) return $this->sign_report(new Report_impossible('new_keys_after_completion'));
+		if ( ($result===true) && ($this->completed()) ) return $this->sign_report(new \Report_impossible('new_keys_after_completion'));
 		return $result;
 	}
 }
@@ -435,7 +436,7 @@ class Request_group_functions extends Request_reuser
 	
 	public function is_ready()
 	{
-		if (empty($this->requested)) return $this->sign_report(new Report_impossible('no_requested_functions'));
+		if (empty($this->requested)) return $this->sign_report(new \Report_impossible('no_requested_functions'));
 		return true;
 	}
 	
@@ -460,7 +461,7 @@ class Request_group_functions extends Request_reuser
 		if (!is_array($functions))
 		{
 			if (array_key_exists($functions, static::$default_fields)) $functions=[$functions=>[static::$default_fields[$functions]]];
-			else return $this->sign_report(new Report_impossible('no_function_field'));
+			else return $this->sign_report(new \Report_impossible('no_function_field'));
 		}
 		else
 		{
@@ -470,7 +471,7 @@ class Request_group_functions extends Request_reuser
 				if ( (is_numeric($function)) && (!is_array($fields)) )
 				{
 					$normalize=$this->normalize_functions($fields);
-					if ($normalize instanceof Report_impossible) return $normalize;
+					if ($normalize instanceof \Report_impossible) return $normalize;
 					$result=array_merge_recursive($result, $normalize);
 				}
 				elseif (!is_array($fields)) $result=array_merge_recursive($result, [$function=>[$fields]]);
@@ -513,9 +514,9 @@ class Request_group_functions extends Request_reuser
 		$uncompleted=parent::set_data();
 	
 		$functions=$this->normalize_functions($functions);
-		if ($functions instanceof Report_impossible) return $functions;
+		if ($functions instanceof \Report_impossible) return $functions;
 		
-		if (count(array_diff(array_keys($functions), static::$good_functions))>0) return $this->sign_report(new Report_impossible('bad_functions'));
+		if (count(array_diff(array_keys($functions), static::$good_functions))>0) return $this->sign_report(new \Report_impossible('bad_functions'));
 		
 		$new_keys=$this->filter_done($functions);
 		
@@ -530,7 +531,7 @@ class Request_group_functions extends Request_reuser
 	
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		$result=reset($result);
 		foreach ($this->requested as $function=>$fields)
 		{
@@ -550,7 +551,7 @@ class Request_group_functions extends Request_reuser
 	{		
 		if (!is_array($functions)) $single_key=$functions;
 		$functions=$this->normalize_functions($functions);
-		if ($functions instanceof Report_impossible) return $functions;
+		if ($functions instanceof \Report_impossible) return $functions;
 		
 		$result=[];
 		foreach ($functions as $function=>$fields)
@@ -559,7 +560,7 @@ class Request_group_functions extends Request_reuser
 			{
 				$key=$this->make_key($function, $field);
 				if (array_key_exists($key, $this->stats)) $result[$key]=$this->stats[$key];
-				else $result[$key]=$this->sign_report(new Report_impossible('no_function_result'));
+				else $result[$key]=$this->sign_report(new \Report_impossible('no_function_result'));
 			}
 		}
 		
@@ -634,7 +635,7 @@ class Request_grouped_functions extends Request_group_functions
 	
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		
 		foreach ($result as $row)
 		{
@@ -660,11 +661,11 @@ class Request_grouped_functions extends Request_group_functions
 	
 	public function compose_data($functions=null, $ticket=null)
 	{
-		if ($functions===null) return $this->sign_report(new Report_impossible('no_functions_argument'));
+		if ($functions===null) return $this->sign_report(new \Report_impossible('no_functions_argument'));
 		
 		if (!is_array($functions)) $single_key=$functions;
 		$functions=$this->normalize_functions($functions);
-		if ($functions instanceof Report_impossible) return $functions;
+		if ($functions instanceof \Report_impossible) return $functions;
 		
 		$result=[];
 		
@@ -690,7 +691,7 @@ class Request_grouped_functions extends Request_group_functions
 					$key=$this->make_key($function, $field);
 					if ( (array_key_exists($subrequest_key, $this->stats)) && (array_key_exists($key, $this->stats[$subrequest_key])) )
 						$result[$subrequest_key][$key]=$this->stats[$subrequest_key][$key];
-					else $result[$subrequest_key][$key]=$this->sign_report(new Report_impossible('no_function_result'));
+					else $result[$subrequest_key][$key]=$this->sign_report(new \Report_impossible('no_function_result'));
 				}
 			}
 			if (!empty($single_key)) $result[$subrequest_key]=$result[$subrequest_key][$single_key];

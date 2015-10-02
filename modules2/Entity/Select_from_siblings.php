@@ -1,6 +1,7 @@
 <?
+namespace Pokeliga\Entity;
 
-class Select_from_siblings extends Selector
+class Select_from_siblings extends Select
 {
 	use Select_complex, Task_steps;
 	
@@ -30,10 +31,10 @@ class Select_from_siblings extends Selector
 			foreach ($this->codes() as $code)
 			{
 				$report=$this->value->master->request($code);
-				if ($report instanceof Report_impossible) return $this->sign_report(new Report_impossible('bad_sibling'));
-				elseif ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+				if ($report instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('bad_sibling'));
+				elseif ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 			}
-			if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_COMPOSE)
@@ -44,15 +45,15 @@ class Select_from_siblings extends Selector
 			{
 				$value=$this->value->master->produce_value($code);
 				$result=$this->extract_from_value($value);
-				if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
-				elseif ($result instanceof Report) return $this->sign_report(new Report_impossible('bad_sibling'));
+				if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+				elseif ($result instanceof \Report) return $this->sign_report(new \Report_impossible('bad_sibling'));
 				elseif (empty($result)) continue;
 				elseif (is_array($result)) $list=array_merge($list, $result);
 				else $list[]=$result;
 			}
 			
-			if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
-			else return $this->sign_report(new Report_resolution($this->linkset_from_entities($list)));
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
+			else return $this->sign_report(new \Report_resolution($this->linkset_from_entities($list)));
 		}
 		elseif ($this->step===static::STEP_COMPOSE_AGAIN)
 		{
@@ -62,7 +63,7 @@ class Select_from_siblings extends Selector
 	
 	public function extract_from_value($value)
 	{
-		if ($value instanceof Value_provides_entity) return $value->get_entity();
+		if (duck_instanceof($value, '\Pokeliga\Entity\Value_links_entity')) return $value->get_entity();
 		elseif ( ($content=$value->content()) instanceof EntitySet) return $content->values;
 		else die('BAD ENTITY VALUE');
 	}
@@ -83,7 +84,7 @@ class Select_linked_to_siblings extends Select_from_siblings
 		if ($this->step===static::STEP_COMPOSE)
 		{
 			$report=parent::run_step();
-			if ($report instanceof Report_resolution)
+			if ($report instanceof \Report_resolution)
 			{
 				$this->from_siblings=$report->resolution->values;
 				if (empty($this->from_siblings)) return $report;
@@ -101,11 +102,11 @@ class Select_linked_to_siblings extends Select_from_siblings
 				foreach ($linked_codes as $code)
 				{
 					$report=$subentity->request($code);
-					if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
-					elseif ($report instanceof Report_impossible) return $report;
+					if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+					elseif ($report instanceof \Report_impossible) return $report;
 				}
 			}
-			if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_COMPOSE_LINKED)
@@ -118,7 +119,7 @@ class Select_linked_to_siblings extends Select_from_siblings
 				foreach ($linked_codes as $code)
 				{
 					$result=$subentity->value($code);
-					if ($result instanceof Report_impossible) return $result;
+					if ($result instanceof \Report_impossible) return $result;
 					$subvalues[]=$subentity->value_object($code); // нужен для извлечения содержимого.
 				}
 			}
@@ -127,14 +128,14 @@ class Select_linked_to_siblings extends Select_from_siblings
 			foreach ($subvalues as $subvalue)
 			{
 				$result=$this->extract_from_value($subvalue);
-				if ($result instanceof Report_impossible) return $result;
-				elseif ($result instanceof Report) return $this->sign_report(new Report_impossible('linked_entity_not_ready'));
+				if ($result instanceof \Report_impossible) return $result;
+				elseif ($result instanceof \Report) return $this->sign_report(new \Report_impossible('linked_entity_not_ready'));
 				elseif (empty($result)) continue;
 				elseif (is_array($result)) $list=array_merge($list, $result);
 				else $list[]=$result;
 			}
-			if (empty($list)) return $this->sign_report(new Report_resolution($this->empty_linkset()));
-			else return $this->sign_report(new Report_resolution($this->linkset_from_entities($list)));
+			if (empty($list)) return $this->sign_report(new \Report_resolution($this->empty_linkset()));
+			else return $this->sign_report(new \Report_resolution($this->linkset_from_entities($list)));
 		}
 		else return parent::run_step();
 	}
@@ -164,7 +165,7 @@ class Select_filter_siblings extends Select_from_siblings
 		if ($this->step===static::STEP_COMPOSE)
 		{
 			$report=parent::run_step();
-			if ($report instanceof Report_resolution)
+			if ($report instanceof \Report_resolution)
 			{
 				$this->from_siblings=$report->resolution->values;
 				if (empty($this->from_siblings)) return $report;
@@ -180,7 +181,7 @@ class Select_filter_siblings extends Select_from_siblings
 			{
 				$tasks[]=$this->pre_request($fields, $subentity);
 			}
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_FILTER)
 		{
@@ -192,7 +193,7 @@ class Select_filter_siblings extends Select_from_siblings
 				foreach ($conditions as $field=>$value)
 				{
 					$test_value=$subentity->value($field);
-					if ($test_value instanceof Report_impossible) return $test_value;
+					if ($test_value instanceof \Report_impossible) return $test_value;
 					if (is_array($value)) $ok=in_array($test_value, $value, true);
 					else $ok=$test_value===$value;
 					if (!$ok) break;
@@ -200,8 +201,8 @@ class Select_filter_siblings extends Select_from_siblings
 				if ($ok) $list[]=$subentity;
 			}
 			
-			if (empty($list)) return $this->sign_report(new Report_resolution($this->empty_linkset()));
-			else return $this->sign_report(new Report_resolution($this->linkset_from_entities($list)));
+			if (empty($list)) return $this->sign_report(new \Report_resolution($this->empty_linkset()));
+			else return $this->sign_report(new \Report_resolution($this->linkset_from_entities($list)));
 		}
 		else return parent::run_step();
 	}

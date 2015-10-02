@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // Описывает раздел сайта, задавя права различных пользователей относительно действий.
 
 class SiteSection extends EntityType

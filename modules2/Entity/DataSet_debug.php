@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Entity;
 
 trait Logger_DataSet
 {
-	use Logger;
+	use \Pokeliga\Entlink\Logger;
 	
 	public function log_domain() { return 'Data'; }
 	

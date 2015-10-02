@@ -1,71 +1,9 @@
 <?
-
-// применяется по необходимости при обращении Valie::template(), если содержимое ещё не готово.
-
-class Template_value_delay extends Template
-{
-	public
-		$name,
-		$value,
-		$final=null;
-		
-	public static function for_value($value, $name, $line=[])
-	{
-		$template=static::with_line($line);
-		$template->setup($value);
-		$template->name=$name;
-		return $template;
-	}
-	
-	public function setup($value)
-	{
-		$this->value=$value;
-	}
-	
-	public function progress()
-	{
-		if ($this->final!==null)
-		{
-			$report=$this->final->report();
-			if ($report instanceof Report_impossible) $this->impossible('failed_content');
-			elseif ($report instanceof Report_resolution)
-			{
-				$this->resolution=$report->resolution;
-				$this->finish();
-			}
-			else die ('BAD FINAL TEMPLATE');
-			return;
-		}
-		elseif ( ($this->value->has_state(Value::STATE_FAILED)) || ($this->value->has_state(Value::STATE_FILLED)) ) $this->process_ready_value();
-		elseif ($this->value->has_state(Value::STATE_FILLING)) $this->register_dependancy($this->value->filler_task);
-		else $this->value->fill();
-	}
-	
-	public function process_ready_value()
-	{
-		if ($this->value->has_state(Value::STATE_FILLED)) $template=$this->value->template_for_filled($this->name, $this->line);
-		elseif ($this->value->has_state(Value::STATE_FAILED)) $template=$this->value->template_for_failed($this->name, $this->line);
-		else die ('VALUE NOT READY');
-		
-		$this->setup_subtemplate($template);
-		
-		if ($template instanceof Task)
-		{
-			$this->register_dependancy($template);
-			$this->final=$template;
-		}
-		elseif ( ($template instanceof Report_impossible) || ($template===null)) $this->impossible('invalid_template');
-		elseif ($template instanceof Report) die ('BAD READY TEMPLATE');
-		else
-		{
-			$this->resolution=$template;
-			$this->finish();
-		}
-	}
-}
+namespace Pokeliga\Data;
 
 // FIX: здесь во многих местах упоминается Select_filter, потому это должно быть сделано изящнее.
-class Template_found_options extends Template_field_select_searchable
+// FIX: возможно, этот класс должен быть переписан под корутины.
+class Template_found_options extends \Pokeliga\Form\Template_field_select_searchable
 {
 	const
 		RESULT_OPTION_DB_KEY='form.search_result_option',
@@ -127,9 +65,9 @@ class Template_found_options extends Template_field_select_searchable
 				$id_group=$this->base_value->value_model_now('id_group');
 				$this->search_select=$id_group::select_by_search($this->search); // обращаемся к типу сущности, задаём поиск без диапазона.
 			}
-			elseif ( (empty($this->range_select->query_convertable)) && (!($this->range_select instanceof Select_filter)) ) // диапазон есть, и он не может быть сведён до запроса.
+			elseif ( (empty($this->range_select->query_convertable)) && (!($this->range_select instanceof \Pokeliga\Entity\Select_filter)) ) // диапазон есть, и он не может быть сведён до запроса.
 			{
-				return $this->sign_report(new Report_task($this->range_select)); // значит, сначала нужно его выполнить и получить айди.
+				return new \Report_dependant($this->range_select, $this); // значит, сначала нужно его выполнить и получить айди.
 			}
 			
 			return $this->advance_step();
@@ -138,7 +76,7 @@ class Template_found_options extends Template_field_select_searchable
 		{
 			if (empty($this->search_select)) // если поисковый выборщик ещё не задан, то есть и поиск, и поисковый диапазон.
 			{
-				if ( (empty($this->range_select->query_convertable)) && (!($this->range_select instanceof Select_filter)) ) // если диапазон не может быть сведён к запросу, то к данному моменту он должен быть уже завершён.
+				if ( (empty($this->range_select->query_convertable)) && (!($this->range_select instanceof \Pokeliga\Entity\Select_filter)) ) // если диапазон не может быть сведён к запросу, то к данному моменту он должен быть уже завершён.
 				{
 					if ($this->range_select->failed()) return $this->range_select->report();
 					$ids=$this->range_select->resolution->ids();
@@ -154,7 +92,7 @@ class Template_found_options extends Template_field_select_searchable
 				$this->search_select=$this->range_select->select_modified_by_calls($call);
 			}
 			$result=$this->get_count();
-			if ($result instanceof Report) return $result;
+			if ($result instanceof \Report) return $result;
 			return $this->advance_step();
 		}
 		return parent::run_step();
@@ -169,27 +107,22 @@ class Template_found_options extends Template_field_select_searchable
 		}
 		if ($this->count===false)
 		{
-			if ($this->page_select instanceof Selector)
+			if ($this->page_select instanceof \Pokeliga\Entity\Select)
 			{
-				if ($this->page_select->successful()) $this->count=count($this->page_select->resolution->values);
+				if ($this->page_select->successful()) $this->count=count($this->page_select->resolution->reg_value('count'));
 				elseif ($this->page_select->failed()) $this->count=0;
-				else return $this->sign_report(new Report_task(new Task_delayed_call([$this, 'get_count'], $this->page_select)));
+				else return (new Task_delayed_call([$this, 'get_count'], $this->page_select))->report_promise();
 			}
 			else return $this->count;
 		}
-		if ($this->count instanceof RequestTicket)
+		if ($this->count instanceof \Pokeliga\Retriever\RequestTicket)
 		{
 			$result=$this->count->get_data_set();
-			if ($result instanceof Report) return $result;
+			if ($result instanceof \Report) return $result;
 			$this->count=$result;
 		}
-		elseif ($this->count instanceof Report_task) $this->count=$this->count->task;
-		if ($this->count instanceof Task)
-		{
-			if ($this->count->successful()) $this->count=$this->count->resolution;
-			elseif ($this->count->failed()) return $this->count->report();
-			else return $this->sign_report(new Report_task($this->count));
-		}
+		elseif ($this->count instanceof \Report_promise) $this->count=$this->count->get_promise();
+		if ($this->count instanceof \Pokeliga\Task\Task) return $this->count->resolution_or_promise();
 		return $this->count;
 	}
 	
@@ -201,30 +134,29 @@ class Template_found_options extends Template_field_select_searchable
 			if ($count===false)
 			{
 				$report=$this->make_options();
-				if ($report instanceof Report_impossible) return;
-				if ($report instanceof Report_tasks) return $this->sign_report(new Report_task(new Task_delayed_call([$this, 'is_paged'], $report)));
+				if ($report instanceof \Report_impossible) return;
+				if ($report instanceof \Report_delay) return (new Task_delayed_call([$this, 'is_paged'], $report->delayed_by()))->report_promise();
 				$count=$this->get_count(); // теперь должно посчитаться.
 			}
-			if ($count instanceof Report_impossible) $result=$count;
-			elseif ($count instanceof Report_task)
+			if ($count instanceof \Report_impossible) $result=$count;
+			elseif ($count instanceof \Report_promise)
 			{
 				$callback=function()
 				{
 					$count=$this->get_count();
-					if ($count instanceof Report_impossible) return $count;
+					if ($count instanceof \Report_impossible) return $count;
 					return $count>=$this->search_limit;
 				};
 				$result=Task_delayed_call::with_call($callback, $count->task);
 			}
-			elseif ($count instanceof Report) die('BAD COUNT REPORT');
+			elseif ($count instanceof \Report) die('BAD COUNT REPORT');
 			else $result=$count>$this->search_limit;
 			$this->is_paged=$result;
 		}
-		if ($this->is_paged instanceof Task)
+		if ($this->is_paged instanceof \Pokeliga\Task\Task)
 		{
-			if ($this->is_paged->successful()) $result=$this->is_paged->resolution;
-			elseif ($this->is_paged->failed()) $result=$this->is_paged->report();
-			else return $this->sign_report(new Report_task($this->is_paged));
+			$result=$this->is_paged->resolution_or_promise();
+			if ($result instanceof \Report_promise) return $result;
 			$this->is_paged=$result;
 		}
 		return $this->is_paged;
@@ -233,7 +165,7 @@ class Template_found_options extends Template_field_select_searchable
 	// возвращает истину в случае, если получение точного счёта слишком затратно и нужно получить только то, переваливают ли результаты за страницу.
 	public function forgo_count()
 	{
-		return $this->range_select!==null && $this->range_select instanceof Select_filter; // STUB
+		return $this->range_select!==null && $this->range_select instanceof \Pokeliga\Entity\Select_filter; // STUB
 	}
 	
 	public static function with_selector($select, $line=[])
@@ -258,7 +190,7 @@ class Template_found_options extends Template_field_select_searchable
 			else $limit=$this->search_limit;
 			$this->page_select=$this->search_select->select_limited($limit, $this->search_order());
 		}
-		if (!$this->page_select->completed()) return $this->sign_report(new Report_task($this->page_select));
+		if (!$this->page_select->completed()) $this->page_select->report_promise();
 		if ($this->page_select->failed()) return $this->page_select->report();
 
 		$options=[];
@@ -297,8 +229,8 @@ class Template_found_options extends Template_field_select_searchable
 }
 
 // отличается тем, что имеет пагинатор и запрашивает _у_ элементов списка, а не перечисляет непосредственно их в виде элементов списка.
-abstract class Template_list extends Template_composed
-{	
+abstract class Template_list extends \Pokeliga\Template\Template_composed
+{
 	public
 		$entry_template,
 		
@@ -312,11 +244,11 @@ abstract class Template_list extends Template_composed
 	{
 		$subjects=$this->get_list_subjects();
 	
-		if ($subjects instanceof Report_impossible) return $subjects;
+		if ($subjects instanceof \Report_impossible) return $subjects;
 	
 		if (array_key_exists('entry_template', $this->line)) $entry_template=$this->line['entry_template'];
 		elseif ($this->entry_template!==null) $entry_template=$this->entry_template;
-		else return $this->sign_report(new Report_impossible('no_template_code'));
+		else return new \Report_impossible('no_template_code', $this);
 		
 		if (is_string($entry_template)) $entry_template=preg_split('/\s*,\s*/', $entry_template);
 		
@@ -358,7 +290,7 @@ abstract class Template_list extends Template_composed
 				elseif ($data['mode']===$ask_master)
 				{
 					$element=$data['master']->template($data['code'], $this->line);
-					if ( ($element instanceof Template) && (empty($element->context)) && ($subject instanceof Template_context) ) $element->context=$subject;
+					if ( ($element instanceof \Pokeliga\Template\Template) && (empty($element->context)) && ($subject instanceof \Pokeliga\Template\Template_context) ) $element->context=$subject;
 				}
 				if ($element===null) $list[]='MISSING TEMPLATE: '.$data['code'];
 				else $list[]=$element;
@@ -379,18 +311,18 @@ abstract class Template_list extends Template_composed
 		if ( ($this->paged===true) && ($this->count===null) )
 		{
 			$result=$this->request_count();
-			if ($result instanceof Report_impossible) $this->impossible('no_count_data');
-			elseif ($result instanceof Report_task)
+			if ($result instanceof \Report_impossible) $this->impossible('no_count_data');
+			elseif ($result instanceof \Report_promise)
 			{
 				$this->count=$result->task;
 				$this->register_dependancy($this->count);
 			}
-			elseif ($result instanceof Report_resolution) $this->count=$result->resolution;
+			elseif ($result instanceof \Report_resolution) $this->count=$result->resolution;
 			elseif (is_numeric($result)) $this->count=$result;
 			else { vdump($result); die('BAD COUNT REPORT'); }
 			return;
 		}
-		if ( ($this->paged===true) && ($this->count instanceof Task) )
+		if ( ($this->paged===true) && ($this->count instanceof \Pokeliga\Task\Task) )
 		{
 			if ($this->count->successful()) $this->count=$this->count->resolution;
 			else $this->impossible('no_count_data');

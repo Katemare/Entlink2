@@ -1,8 +1,9 @@
 <?
+namespace Pokeliga\Form;
 
 class FieldSet_date extends FieldSet_sub
 {
-	use Multistage_input;
+	use \Pokeliga\Data\Multistage_input;
 	
 	const
 		NOW='n',
@@ -16,9 +17,9 @@ class FieldSet_date extends FieldSet_sub
 		$template_db_key='form.date',
 		$model_stages=
 		[
-			FieldSet_date::STAGE_DATE=>['day', 'month', 'year', 'hour', 'minute']
+			self::STAGE_DATE=>['day', 'month', 'year', 'hour', 'minute']
 		],
-		$model_stage=FieldSet_date::STAGE_NOW,
+		$model_stage=self::STAGE_NOW,
 		$input_fields=['now'],
 		$model=
 		[
@@ -70,7 +71,7 @@ class FieldSet_date extends FieldSet_sub
 		if ($this->content_of('now')) $result=time();
 		else $result=mktime($this->content_of('hour'), $this->content_of('minute'), 0, $this->content_of('month'), $this->content_of('day'), $this->content_of('year'));
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
@@ -114,13 +115,13 @@ class FieldSet_monthday extends FieldSet_date
 	{
 		$result=$this->content_of('month').':'.$this->content_of('day'); // не очень удобный формат, но такой, который пока используется.
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
 	{
 		$date=explode(':', $content);
-		if (count($date)!=2) return $this->sign_report(new Report_impossible('bad_monthday'));
+		if (count($date)!=2) return $this->sign_report(new \Report_impossible('bad_monthday'));
 		
 		$set=['month'=>$date[0], 'day'=>$date[1]];
 		$this->set_by_array($set, $source_code);
@@ -147,7 +148,7 @@ class FieldSet_monthday_period extends FieldSet_sub
 	{
 		$result=$this->content_of('start').'-'.$this->content_of('finish');
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
@@ -185,13 +186,13 @@ class FieldSet_daytime extends FieldSet_date
 	{
 		$result=$this->content_of('hour').':'.$this->content_of('minute'); // не очень удобный формат, но такой, который пока используется.
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
 	{
 		$date=explode(':', $content);
-		if (count($date)!=2) return $this->sign_report(new Report_impossible('bad_monthday'));
+		if (count($date)!=2) return $this->sign_report(new \Report_impossible('bad_monthday'));
 		
 		$set=['hour'=>$date[0], 'minute'=>$date[1]];
 		$this->set_by_array($set, $source_code);
@@ -218,7 +219,7 @@ class FieldSet_daytime_period extends FieldSet_sub
 	{
 		$result=$this->content_of('start').'-'.$this->content_of('finish');
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
@@ -229,6 +230,8 @@ class FieldSet_daytime_period extends FieldSet_sub
 	}
 }
 
+// WIP
+/*
 class FieldSet_timetable extends FieldSet_sub
 {
 	use Multistage_input;
@@ -353,7 +356,7 @@ class FieldSet_timetable extends FieldSet_sub
 		if ($this->content_of('now')) $result=time();
 		else $result=mktime($this->content_of('hour'), $this->content_of('minute'), 0, $this->content_of('month'), $this->content_of('day'), $this->content_of('year'));
 		$this->process_success=true;
-		return $this->sign_report(new Report_resolution($result));
+		return $this->sign_report(new \Report_resolution($result));
 	}
 	
 	public function set($content, $source_code=Value::BY_OPERATION)
@@ -369,12 +372,12 @@ class FieldSet_timetable extends FieldSet_sub
 		$this->set_by_array($set, $source_code);
 	}
 }
+*/
 
-class Value_month_day extends Value_unsigned_int
+class ValueType_month_day extends ValueType_natural_int
 {
-	public
-		$min=1,
-		$max=31;
+	const
+		MAX=31;
 }
 
 class Validator_month_day extends Validator
@@ -391,9 +394,11 @@ class Validator_month_day extends Validator
 	}
 }
 
-class Value_month extends Value_unsigned_int
+class ValueType_month extends ValueType_natural_int
 {
 	const
+		MAX=12,
+		
 		FORMAT_RUS='rus',
 		FORMAT_RUS_SHORT='rus_short',
 		FORMAT_ENG='eng',
@@ -406,17 +411,13 @@ class Value_month extends Value_unsigned_int
 	static
 		$convert=
 		[
-			Value_month::FORMAT_RUS=>[1=>'Январь', 2=>'Февраль', 3=>'Март', 4=>'Апрель', 5=>'Май', 6=>'Июнь', 7=>'Июль', 8=>'Август', 9=>'Сентябрь', 10=>'Октябрь', 11=>'Ноябрь', 12=>'Декабрь'],
-			Value_month::FORMAT_RUS_SHORT=>[1=>'Янв', 2=>'Фев', 3=>'Март', 4=>'Апр', 5=>'Май', 6=>'Июнь', 7=>'Июль', 8=>'Авг', 9=>'Сен', 10=>'Окт', 11=>'Ноя', 12=>'Дек'],
-			Value_month::FORMAT_ENG=>[1=>'January', 2=>'February', 3=>'March', 4=>'April', 5=>'May', 6=>'June', 7=>'July', 8=>'August', 9=>'September', 10=>'October', 11=>'November', 12=>'December'],
-			Value_month::FORMAT_ENG_SHORT=>[1=>'Jan', 2=>'Feb', 3=>'Mar', 4=>'Apr', 5=>'May', 6=>'Jun', 7=>'Jul', 8=>'Aug', 9=>'Sep', 10=>'Oct', 11=>'Nov', 12=>'Dec'],
-			Value_month::FORMAT_NUM_ZEROFILL=>[1=>'01', 2=>'02', 3=>'03', 4=>'04', 5=>'05', 6=>'06', 7=>'07', 8=>'08', 9=>'09', 10=>'10', 11=>'11', 12=>'12'],
-			Value_month::FORMAT_NUM=>[1=>1, 2=>2, 3=>3, 4=>4, 5=>5, 6=>6, 7=>7, 8=>8, 9=>9, 10=>10, 11=>11, 12=>12]
+			self::FORMAT_RUS=>[1=>'Январь', 2=>'Февраль', 3=>'Март', 4=>'Апрель', 5=>'Май', 6=>'Июнь', 7=>'Июль', 8=>'Август', 9=>'Сентябрь', 10=>'Октябрь', 11=>'Ноябрь', 12=>'Декабрь'],
+			self::FORMAT_RUS_SHORT=>[1=>'Янв', 2=>'Фев', 3=>'Март', 4=>'Апр', 5=>'Май', 6=>'Июнь', 7=>'Июль', 8=>'Авг', 9=>'Сен', 10=>'Окт', 11=>'Ноя', 12=>'Дек'],
+			self::FORMAT_ENG=>[1=>'January', 2=>'February', 3=>'March', 4=>'April', 5=>'May', 6=>'June', 7=>'July', 8=>'August', 9=>'September', 10=>'October', 11=>'November', 12=>'December'],
+			self::FORMAT_ENG_SHORT=>[1=>'Jan', 2=>'Feb', 3=>'Mar', 4=>'Apr', 5=>'May', 6=>'Jun', 7=>'Jul', 8=>'Aug', 9=>'Sep', 10=>'Oct', 11=>'Nov', 12=>'Dec'],
+			self::FORMAT_NUM_ZEROFILL=>[1=>'01', 2=>'02', 3=>'03', 4=>'04', 5=>'05', 6=>'06', 7=>'07', 8=>'08', 9=>'09', 10=>'10', 11=>'11', 12=>'12'],
+			self::FORMAT_NUM=>[1=>1, 2=>2, 3=>3, 4=>4, 5=>5, 6=>6, 7=>7, 8=>8, 9=>9, 10=>10, 11=>11, 12=>12]
 		];
-		
-	public
-		$min=1,
-		$max=12;
 		
 	public function for_display($format=null, $line=[])
 	{
@@ -428,14 +429,16 @@ class Value_month extends Value_unsigned_int
 	
 	public function options($line=[])
 	{
-		//return static::$convert[Value_month::FORMAT_NUM_ZEROFILL];
-		return static::$convert[Value_month::FORMAT_RUS];
+		//return static::$convert[ValueType_month::FORMAT_NUM_ZEROFILL];
+		return static::$convert[static::FORMAT_RUS];
 	}
 }
 
-class Value_weekday extends Value_unsigned_int
+class ValueType_weekday extends ValueType_natural_int
 {
 	const
+		MAX=7,
+		
 		FORMAT_RUS='rus',
 		FORMAT_RUS_SHORT='rus_short',
 		FORMAT_ENG='eng',
@@ -447,16 +450,12 @@ class Value_weekday extends Value_unsigned_int
 	static
 		$convert=
 		[
-			Value_month::FORMAT_RUS=>[1=>'Понедельник', 2=>'Вторник', 3=>'Среда', 4=>'Четверг', 5=>'Пятница', 6=>'Суббота', 7=>'Воскресенье'],
-			Value_month::FORMAT_RUS_SHORT=>[1=>'Пн', 2=>'Вт', 3=>'Ср', 4=>'Чт', 5=>'Пт', 6=>'Сб', 7=>'Вс'],
-			Value_month::FORMAT_ENG=>[1=>'Monday', 2=>'Tuesday', 3=>'Wednesday', 4=>'Thursday', 5=>'Friday', 6=>'Saturday', 7=>'Sunday'],
-			Value_month::FORMAT_ENG_SHORT=>[1=>'Mon', 2=>'Tue', 3=>'Wed', 4=>'Thu', 5=>'Fri', 6=>'Sat', 7=>'Sun'],
-			Value_month::FORMAT_NUM=>[1=>1, 2=>2, 3=>3, 4=>4, 5=>5, 6=>6, 7=>7]
+			self::FORMAT_RUS=>[1=>'Понедельник', 2=>'Вторник', 3=>'Среда', 4=>'Четверг', 5=>'Пятница', 6=>'Суббота', 7=>'Воскресенье'],
+			self::FORMAT_RUS_SHORT=>[1=>'Пн', 2=>'Вт', 3=>'Ср', 4=>'Чт', 5=>'Пт', 6=>'Сб', 7=>'Вс'],
+			self::FORMAT_ENG=>[1=>'Monday', 2=>'Tuesday', 3=>'Wednesday', 4=>'Thursday', 5=>'Friday', 6=>'Saturday', 7=>'Sunday'],
+			self::FORMAT_ENG_SHORT=>[1=>'Mon', 2=>'Tue', 3=>'Wed', 4=>'Thu', 5=>'Fri', 6=>'Sat', 7=>'Sun'],
+			self::FORMAT_NUM=>[1=>1, 2=>2, 3=>3, 4=>4, 5=>5, 6=>6, 7=>7]
 		];
-		
-	public
-		$min=1,
-		$max=7;
 		
 	public function for_display($format=null, $line=[])
 	{
@@ -468,38 +467,36 @@ class Value_weekday extends Value_unsigned_int
 	
 	public function options($line=[])
 	{
-		//return static::$convert[Value_month::FORMAT_NUM_ZEROFILL];
-		return static::$convert[Value_month::FORMAT_RUS];
+		//return static::$convert[ValueType_month::FORMAT_NUM_ZEROFILL];
+		return static::$convert[static::FORMAT_RUS];
 	}
 }
 
-class Value_year extends Value_unsigned_int
+class ValueType_year extends ValueType_natural_int
 {
-	public
-		$min=2000,
-		$max=2036;
+	const
+		MIN=2000,
+		MAX=2036;
 }
 
-class Value_hour extends Value_unsigned_int
+class ValueType_hour extends ValueType_unsigned_int
 {
-	public
-		$min=0,
-		$max=24;
+	const
+		MAX=24;
 		
-	public function legal_value($content)
+	public static function type_conversion($content)
 	{
-		$content=parent::legal_value($content);
-		if ($content instanceof Report) return $content;
+		$content=parent::type_conversion($content);
+		if ($content instanceof \Report) return $content;
 		if ($content==24) $content=0;
 		return $content;
 	}
 }
 
-class Value_minute extends Value_unsigned_int
+class ValueType_minute extends ValueType_unsigned_int
 {
-	public
-		$min=0,
-		$max=59;
+	const
+		MAX=59;
 		
 	public function options($line=[])
 	{
@@ -510,9 +507,5 @@ class Value_minute extends Value_unsigned_int
 		}
 		return $options;
 	}
-}
-
-class Value_period extends Value_unsigned_int
-{
 }
 ?>

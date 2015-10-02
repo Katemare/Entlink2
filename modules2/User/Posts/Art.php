@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 class Art extends Post
 {
@@ -33,7 +34,7 @@ class Post_type_art extends Post_type_specific
 			],
 			'file'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image'
 			],
 			'tagspace_links'=>

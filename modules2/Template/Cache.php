@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Template;
 
 class Task_retrieve_cache extends Task
 {
@@ -26,14 +27,14 @@ class Task_retrieve_cache extends Task
 	
 	public function apply_data($data)
 	{
-		if ( (empty($data)) || ($data instanceof Report_impossible) ) $this->impossible('no_cache');
+		if ( (empty($data)) || ($data instanceof \Report_impossible) ) $this->impossible('no_cache');
 		else $this->finish_with_resolution($data['content']);
 	}
 	
 	public function save_cache($content)
 	{
 		$task=Task_save_cache::with_cache_key($this->cache_key, $content);
-		return $this->sign_report(new Report_task($task));
+		return $this->sign_report(new \Report_task($task));
 	}
 }
 
@@ -68,14 +69,14 @@ class Task_save_cache extends Task_retrieve_cache
 	
 	public function apply_data($data)
 	{
-		if ( (empty($data)) || ($data instanceof Report_impossible) ) $this->impossible('cache_not_saved');
+		if ( (empty($data)) || ($data instanceof \Report_impossible) ) $this->impossible('cache_not_saved');
 		else $this->finish();
 	}
 	
 	public function save_cache($content)
 	{
 		if ($content!==$this->content) die('BAD CACHE CONTENT');
-		if (!$this->completed()) return $this->sign_report(new Report_task($this));
+		if (!$this->completed()) return $this->sign_report(new \Report_task($this));
 		return $this->report();
 	}
 }

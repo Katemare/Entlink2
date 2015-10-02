@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Form;
 
 class Page_form_api extends Page_xml
 {
@@ -17,9 +18,9 @@ class Page_form_api extends Page_xml
 		if ($message==='form_field')
 		{
 			$class=$this->input->content_of('form');
-			if (!class_exists($class)) return $this->sign_report(new Report_impossible('bad_form_class'));
-			if (!string_instanceof($class, 'FieldSet')) return $this->sign_report(new Report_impossible('bad_form_class'));
-			if (!$class::xml_exportable()) return $this->sign_report(new Report_impossible('bad_form_class'));
+			if (!class_exists($class)) return $this->sign_report(new \Report_impossible('bad_form_class'));
+			if (!string_instanceof($class, 'FieldSet')) return $this->sign_report(new \Report_impossible('bad_form_class'));
+			if (!$class::xml_exportable()) return $this->sign_report(new \Report_impossible('bad_form_class'));
 			$this->form=$class::create_for_xml();
 			
 			return $this->advance_step();
@@ -32,8 +33,8 @@ class Page_form_api extends Page_xml
 			if (array_key_exists('group', $data))
 			{
 				$group=$data['group'];
-				if (!class_exists($group)) return $this->sign_report(new Report_impossible('bad_entity_class'));
-				if (!string_instanceof($group, 'EntityType')) return $this->sign_report(new Report_impossible('bad_entity_class'));
+				if (!class_exists($group)) return $this->sign_report(new \Report_impossible('bad_entity_class'));
+				if (!string_instanceof($group, 'EntityType')) return $this->sign_report(new \Report_impossible('bad_entity_class'));
 				$model['type']='id';
 				$model['id_group']=$group;
 				
@@ -41,21 +42,21 @@ class Page_form_api extends Page_xml
 				{
 					$model['range']=$data['range'];
 					
-					// STUB! в будущем такие вопросы должен решать Value_id, подсказывающий Selector для ограничения возможных айди.
+					// STUB! в будущем такие вопросы должен решать Value_id, подсказывающий Select для ограничения возможных айди.
 					$range_model=[];
 					if (array_key_exists('mission', $data)) $range_model['mission']=$data['mission'];
 					if (array_key_exists('mask', $data)) $range_model['mask']=$data['mask'];
 					if (!empty($range_model)) $model['range_model']=$range_model;
 				}
 			}
-			else return $this->sign_report(new Report_impossible('bad_select_params'));
+			else return $this->sign_report(new \Report_impossible('bad_select_params'));
 			
 			$model=[ 'select'=>$model ];
 			$this->form=FieldSet::create_for_display_from_model($model);
 			
 			return $this->advance_step();
 		}
-		return $this->sign_report(new Report_impossible('bad_message'));
+		return $this->sign_report(new \Report_impossible('bad_message'));
 	}
 	
 	public function content()

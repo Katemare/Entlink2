@@ -1,11 +1,34 @@
 <?
-class Module_Form extends Module
+namespace Pokeliga\Form;
+
+class Module_Form extends \Pokeliga\Entlink\Module
 {
-	use Module_autoload_by_beginning;
+	use \Pokeliga\Entlink\Module_autoload_by_beginning;
 	static $instance=null;
 	
 	public
 		$name='Form',
+		$class_shorthands=
+		[
+			'Pokeliga\Form\Template_field'=>
+			[
+				'input', 'input_line', 'input_number',
+				'hidden',
+				'checkbox', 'textarea', 'button', 'submit', 'radio',
+				'select', 'select_searchable', 'multiselect', 'radios'
+			],
+			'Pokeliga\Form\FieldSet'=>
+			[
+				'date', 'monthday', 'daytime',
+				'monthday_period', 'daytime_period', 'timetable',
+				'list', 'multiselect', 'slugselect', 'dual_slugselect', 'entity_list'
+			],
+			'Pokeliga\Data\ValueType'=>
+			[
+				'month_day', 'month', 'weekday', 'year', 'hour', 'minute',
+				'search'
+			]
+		],
 		$quick_classes=
 		[
 			'Form'=>'Form',
@@ -30,6 +53,7 @@ class Module_Form extends Module
 			'FieldSet_dual_slugselect'=>'FieldSet_list',
 			
 			'Form_entity'=>'Form_entity',
+			'FieldSet_entity'=>'Form_entity',
 			
 			'FieldSet_entity_list'=>'FieldSet_entity_list',
 			
@@ -39,9 +63,10 @@ class Module_Form extends Module
 			'Template_field_multiselect'=>'Template_field_select',
 			'Template_field_option'=>'Template_field_select',
 			'Template_field_radios'=>'Template_field_select',
-			'Template_field_radios_inline'=>'Template_field_select'
+			'Template_field_radios_inline'=>'Template_field_select',
+			'Template_field_select_searchable'=>'Template_field_select'
 		],
-		$classex='/^(?<file>FieldSet|Form|Template_field_select|Template_field)[_$]/';
+		$classex='(?<file>FieldSet|Form|Template_field_select|Template_field)[_$]';
 	
 	public function spawn_default_page($route=[])
 	{

@@ -1,8 +1,11 @@
 <?
+namespace Pokeliga\Entity;
 
 // родительский класс для проверок содержимого значений, которые находятся в DataSet у сущности.
-abstract class Validator_for_entity_value extends Validator
+abstract class Validator_for_entity_value extends \Pokeliga\Data\Validator
 {
+	use Task_for_entity_methods;
+	
 	public
 		$entity;
 	
@@ -13,115 +16,155 @@ abstract class Validator_for_entity_value extends Validator
 	}
 }
 
-// интерфейс для любого значение, которое может указать пальцем на сущность.
-interface Value_provides_entity
+// интерфейс для любого значения, которое может указать пальцем на сущность.
+interface Value_links_entity extends \Pokeliga\Data\Value_has_registers // регистры должны иметь 'id' и 'id_group'
 {
 	public function get_entity();
-	// возвращает либо сущность; либо Report_task с задачей, разрешением которой станет сущность; либо Report_impossible. возвращённая сущность не обязательно является подтверждённой. Если возвращается отчёт с задачей, то после выполнения задачи следующий запрос к get_entity() должен вернуть либо сущность, либо невозможность.
+	// возвращает либо сущность; либо \Report_task с задачей, разрешением которой станет сущность; либо \Report_impossible. возвращённая сущность не обязательно является подтверждённой. Если возвращается отчёт с задачей, то после выполнения задачи следующий запрос к get_entity() должен вернуть либо сущность, либо невозможность.
 	// FIX: хорошо бы во всех случаях возвращать Entity, пусть и в состоянии EXPECTED_ID.
 }
 
-// отличается от Value_contains_entity тем, что содержит айди сущности или другой идентификатор, а то время как Value_contains_entity имеет именно сущность в качестве содержимого. От этого зависит обработка модели сущности: для Value_links_entity создаётся дополнительное поле, непосредственно содержащее сущность.
-interface Value_links_entity 
-{
-	public function linked_entity();
-	// те же ответы, что у get_entity() выше.
-}
+// используется при клонировании сущности в другой пул.
+interface Value_contains_pool_member { }
 
-// интерфейс тех значений, которые принципиально не хранятся в БД. этот интерфейс также пока что забегает вперёд и знает о том, о чём не должен знать - хранении в БД. ведь когда значения - часть URL страницы или значений формы, то о БД речи не идёт.
-interface Value_unkept
-{
-}
+interface Value_contains_entity extends Value_contains_pool_member { }
 
 interface Value_handles_cloning
 {
 	public function cloned_from_pool($pool);
 }
 
-class Value_id extends Value_unsigned_int
-	implements Value_links_entity, Value_provides_entity, Value_handles_cloning, Pathway, Value_searchable_options
+// это Value, соответствующие интерфейсу Value_searchable_options, находит сущности и возвращает соответствующую опцию выпадающего списка.
+trait Value_searchable_entity
 {
-	use Value_searchable_entity;
+	public function option_by_value($value, $line=[])
+	{
+		$id_group=$this->value_model_now('id_group');
+		$entity=$this->pool()->entity_from_db_id($value, $id_group);
+		if (empty($entity)) return $this->sign_report(new \Report_impossible('no_entity'));
+		
+		$template=Template_entity_option::for_entity($entity);
+		return $template;
+	}
+}
+
+class ValueType_id_group extends \Pokeliga\Data\ValueType_keyword
+{
+	const
+		GOOD_CHARACTERS='a-zA-Z\d_\\\\',
+		MIN=1,
+		MAX=200;
+}
+
+class ValueType_entity extends \Pokeliga\Data\ValueType
+	implements Value_links_entity, \Pokeliga\Data\Value_searchable_options, Value_contains_entity
+{
+	use Value_searchable_entity, \Pokeliga\Data\Value_registers;
 	
 	const
+		DEFAULT_SCALAR_REGISTER='id',
 		RAW_CONTENT='raw',
 		DEFAULT_SEARCH_LIMIT=30,
 		DEFAULT_SEARCH_ORDER='id';
 
-	public function legal_value($content)
+	public
+		$reg_model=
+		[
+			'id'=>
+			[
+				'type'=>'unsigned_int',
+				'extract_call'=>['extract_entity_property', 'db_id']
+			],
+			'id_group'=>
+			[
+				'type'=>'id_group',
+				'extract_call'=>['extract_entity_property', 'id_group']
+			],
+		];
+	
+	public function apply_model($model)
+	{
+		parent::apply_model($model);
+		
+		$id_group=$this->get_preset_id_group();
+		// в результате может придти как \Report_impossible (в модели данных нет), так и название группы, и null - что означает произвольную сущность. но произвольные сущности пока не реализованы.
+		if ( (!empty($id_group)) && (!($id_group instanceof \Report_impossible)) ) $this->reg_model['id_group']['const']=$id_group;
+		else unset($this->reg_model['id_group']['const']);
+		
+		if (!empty($this->RegSet)) $this->RegSet->change_model('id_group', $this->reg_model['id_group']);
+	}
+	
+	public function get_preset_id_group()
+	{
+		if ($this->in_value_model('id_group')) return $this->value_model_now('id_group');
+		return $this->sign_report(new \Report_impossible('no_preset_id_group'));
+	}
+	
+	public function extract_entity_property($prop_name)
+	{
+		$content=$this->content();
+		if ($content===null) return $content;
+		return $content->$prop_name;
+	}
+	
+	public function settings_based_conversion($content)
 	{
 		if ($content instanceof Entity)
 		{
-			if ($content->has_db_id()) return $content->db_id;
-			else die ('NO DB ID');
+			$id_group=$this->get_preset_id_group();
+			if ( (!($id_group instanceof \Report_impossible)) && (!$content->in_id_group($id_group)) ) $this->sign_report(new \Report_impossible('bad_entity'));
+			return $content;
 		}
-		return parent::legal_value($content);
-	}
-
-	public
-		$entity=null;	
-	public function content_changed($source=Value::BY_OPERATION)
-	{
-		$this->entity=null;
+		if (is_numeric($content))
+		{
+			//return $this->compose_from_regs(['id'=>$content]); // можно обратиться через RegSet для порядка, но довольно легко сделать проще.
+			$id_group=$this->get_preset_id_group();
+			if ($id_group instanceof \Report_impossible) return $id_group;
+			return $this->pool()->entity_from_db_id($content, $id_group);
+		}
+		if (is_array($content)) return $this->compose_from_regs($content);
+		return $this->sign_report(new \Report_impossible('not_entity'));
 	}
 	
-	public function linked_entity()
+	public function compose_from_regs($data)
 	{
-		$report=$this->request(); // иногда это меняет состояние значения.
-		if ($this->has_state(Value::STATE_FAILED)) return $this->sign_report(new Report_impossible('failed_value'));
-		if (!$this->has_state(Value::STATE_FILLED))
-		{
-			$task=Task_delayed_call::with_call([$this, 'linked_entity'], $report);
-			return $this->sign_report(new Report_task($task));
-		}
+		if (!array_key_exists('id', $data)) return $this->sign_report(new \Report_impossible('no_entity_id'));
+		else $id=$data['id'];
 		
-		if ($this->entity!==null) return $this->entity;
-		$id=$this->content;
-		if (empty($id)) return;
-		$pool=$this->pool();
-		$this->entity=$pool->entity_from_db_id($id, $this->value_model_now('id_group'));
-		return $this->entity;
+		if (!array_key_exists('id_group', $data))
+		{
+			$id_group=$this->get_preset_id_group();
+			if ($id_group instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('no_id_group')); // в модели нет данных о группе.
+		}
+		else $id_group=$data['id_group']; // может быть null, что означает произвольную сущность.
+		return $this->pool()->entity_from_db_id($id, $id_group);
+	}
+	
+	public function compose_change_by_reg($register, $content)
+	{
+		return $this->compose_change_by_test_RegSet($register, $content, ['id', 'id_group']);
 	}
 	
 	public function get_entity()
 	{
-		return $this->linked_entity();
+		$report=$this->request();
+		if ($report instanceof \Report_resolution) return $report->resolution;
+		return $report;
 	}
 	
-	public function template($code, $line=[])
+	public function template_for_filled($code, $line=[])
 	{
-		$template=parent::template($code, $line);
-		if ($template!==null) return $template;
-		
 		$entity=$this->get_entity();
-		if (!($entity instanceof Entity)) return;
+		if ($entity instanceof \Report) return;
 		return $entity->template($code, $line);
 	}
 	
-	public function default_template($line=[])
+	public function follow_track($track, $line=[])
 	{
-		if ( (array_key_exists('template', $line)) && ($line['template']===static::RAW_CONTENT) ) return parent::default_template($line);
-		if ( (array_key_exists('format', $line)) && ($line['format']===static::RAW_CONTENT) ) return parent::default_template($line);
-		
-		$entity=$this->linked_entity();
-		if (empty($entity))
-		{
-			if (array_key_exists('on_empty', $line)) return $line['on_empty'];
-			return parent::default_template($line);
-		}
-		
-		if (array_key_exists('template', $line)) $code=$line['template'];
-		elseif ($this->in_value_model('template')) $code=$this->value_model_now('template');
-		else $code=null;
-		return $entity->template($code, $line);
-	}
-	
-	public function follow_track($track)
-	{
-		if (!$this->has_state(static::STATE_FILLED)) return $this->request();
-		$entity=$this->linked_entity();
-		if (!($entity instanceof Entity)) return $this->sign_report(new Report_impossible('no_track 1'));
-		return $entity->follow_track($track);
+		$entity=$this->get_entity();
+		if ($entity instanceof \Report_impossible) return $entity;
+		if ($entity instanceof \Report_tasks) return $entity->force_again();
+		return $entity->follow_track($track, $line=[]);
 	}
 	
 	public function list_validators()
@@ -145,11 +188,6 @@ class Value_id extends Value_unsigned_int
 		}
 		
 		return $validators;
-	}
-	
-	public function cloned_from_pool($pool)
-	{
-		$this->entity=null;
 	}
 	
 	public function API_search_arguments()
@@ -188,7 +226,7 @@ class Value_id extends Value_unsigned_int
 		{
 			// STUB: пока что страхует от ошибок, но не оптимизировано.
 			if (Compacter::recognize_mark($value)) $value=Compacter::by_mark_and_extract($this, $value);
-			if ($value instanceof Task) $value->complete();
+			if ($value instanceof \Pokeliga\Task\Task) $value->complete();
 			$model[$key]=$value;
 		}
 		return $model;
@@ -204,128 +242,20 @@ class Value_id extends Value_unsigned_int
 		return $select;
 	}
 	
-	
 	public function ValueHost_request($code)
 	{
-		if ($this->has_state(Value::STATE_FAILED)) return $this->sign_report(new Report_impossible('failed_value'));
-		if (!$this->has_state(Value::STATE_FILLED))
-		{
-			$task=Task_delayed_call::with_call(new Call( [$this, 'ValueHost_request'], $code), $this->request());
-			return $this->sign_report(new Report_task($task));
-		}
 		$entity=$this->get_entity();
-		if ($entity instanceof Report_impossible) return $entity;
-		elseif ($entity instanceof Report) die('BAD VALUEHOST');
+		if ($entity instanceof \Report_tasks)
+		{
+			$task=Task_delayed_call::with_call(new Call( [$this, 'ValueHost_request'], $code), $entity);
+			return $this->sign_report(new \Report_task($task));
+		}
+		if ($entity instanceof \Report_impossible) return $entity;
 		return $entity->request($code);
 	}
 }
 
-class Value_own_id extends Value_id
-{
-	public function default_template($line=[])
-	{
-		if (empty($line['template'])) $line['template']=static::RAW_CONTENT;
-		return parent::default_template($line);
-	}
-	
-	public function linked_entity()
-	{
-		return $this->master->entity;
-	}
-}
-
-class Value_id_and_group extends Value_id
-{
-	public
-		$default_keeper='id_and_group';
-}
-
-// используется при клонировании сущности в другой пул.
-interface Value_contains_pool_member { }
-
-interface Value_contains_entity extends Value_contains_pool_member { }
-
-// классы Value_entity и Value_reference описывают значение, ссылающееся на другое значение. Первый содержит сущность, на которую указывает связанный Value_id. Второй в качестве содержимого возвращает содержимое другого значения другой сущности.
-
-class Value_entity extends Value implements Value_contains_entity, Value_provides_entity, Value_unkept, Pathway
-{		
-	// если вызван этот метод, значит, данное значение не заполнено.
-	public function determine_generator()
-	{
-		$filler=parent::determine_generator();
-		if (!empty($filler)) return $filler;
-		$filler=Filler_for_entity_value::for_value($this);
-		return $filler;
-	}
-	
-	public function legal_value($content)
-	{
-		if (is_numeric($content))
-		{
-			$id_group=null;
-			if ($this->in_value_model('id_group')) $id_group=$this->value_model_now('id_group');
-			$content=$this->pool()->entity_from_db_id($content, $id_group);
-		}
-		if ($content instanceof Entity) return $content;
-		vdump('BAD CONTENT 1:'); vdump($content); vdump($this); exit;
-	}
-	
-	public function for_display($format=null, $line=[])
-	{
-		if (!is_null($format)) $line=['format'=>$format];
-		else $line=[];
-		if (empty($this->content)) return '';
-		return $this->content->template('link', $line);
-	}
-	
-	public function template($name, $line=[])
-	{
-		if (($element=parent::template($name, $line))!==null) return $element;
-		if (!is_object($this->content)) return;
-		return $this->content->template($name, $line);
-	}
-	
-	public function default_template($line=[])
-	{
-		if (empty($this->content)) return parent::default_template($line);
-		if (array_key_exists('template', $line)) $code=$line['template'];
-		elseif ($this->in_value_model('template')) $code=$this->value_model_now('template');
-		else $code=null;
-		return $this->content->template($code, $line);
-	}
-	
-	public function get_entity()
-	{
-		$result=$this->request();
-		if ($result instanceof Report_resolution) return $result->resolution;
-		return $result;
-	}
-	
-	public function follow_track($track)
-	{
-		if (!$this->has_state(static::STATE_FILLED)) return $this->request();
-		$entity=$this->get_entity();
-		if (!($entity instanceof Entity)) return $this->sign_report(new Report_impossible('no_track 2'));
-		return $entity->follow_track($track);
-	}
-	
-	public function ValueHost_request($code)
-	{
-		if ($this->has_state(Value::STATE_FAILED)) return $this->sign_report(new Report_impossible('failed_value'));
-		if (!$this->has_state(Value::STATE_FILLED))
-		{
-			$task=Task_delayed_call::with_call(new Call( [$this, 'ValueHost_request'], $code), $this->request());
-			return $this->sign_report(new Report_task($task));
-		}
-		$entity=$this->get_entity();
-		if ($entity instanceof Report_impossible) return $entity;
-		elseif ($entity instanceof Report) die('BAD VALUEHOST');
-		elseif (!($entity instanceof Entity)) return $this->sign_report(new Report_impossible('not_entity_content'));
-		return $entity->request($code);
-	}
-}
-
-class Value_ids extends Value_int_array
+class ValueType_ids extends \Pokeliga\Data\ValueType_int_array
 {
 	public function list_validators()
 	{
@@ -356,7 +286,7 @@ class Value_ids extends Value_int_array
 }
 
 // это импортированные значения: например, название вида у сущности-покемона (ссылается на название вида у сущности-вида). В отличие от большинства объектов Value, этот содержит реализацию заполнения, а не рассчитывает на ValueSet.
-class Value_reference extends Value implements Value_contains_pool_member
+class ValueType_reference extends \Pokeliga\Data\ValueType implements Value_contains_pool_member
 {
 	const
 		DEFAULT_TEMPLATE_CLASS='Template_value_reference';
@@ -371,16 +301,16 @@ class Value_reference extends Value implements Value_contains_pool_member
 		else die('SETTING REFERENCE');
 	}
 	
-	public function legal_value($content)
+	public function to_good_content($content)
 	{
-		if ($content instanceof Value) return $content;
+		if ($content instanceof \Pokeliga\Data\Value) return $content;
 		if ($content===null) return $content; // если оригинала нет.
 		vdump('BAD CONTENT 2:'); vdump($content); vdump($this); debug_dump(); exit;
 	}
 	
 	public function connected()
 	{
-		return $this->content instanceof Value;
+		return $this->content instanceof \Pokeliga\Data\Value;
 	}
 	
 	public function content()
@@ -409,9 +339,9 @@ class Value_reference extends Value implements Value_contains_pool_member
 		else return parent::value();
 	}
 	
-	public function determine_generator()
+	public function get_generator_task()
 	{
-		$filler=parent::determine_generator();
+		$filler=parent::get_generator_task();
 		if (!empty($filler)) return $filler;
 		$filler=Filler_for_entity_reference::for_value($this);
 		return $filler;
@@ -435,7 +365,7 @@ class Value_reference extends Value implements Value_contains_pool_member
 }
 
 // в этом наборе место значений занимают объекты класса Entity, а не Value.
-class EntitySet extends MonoSet
+class EntitySet extends \Pokeliga\Data\MonoSet
 {
 	public
 		$pool=null;
@@ -486,17 +416,17 @@ class EntitySet extends MonoSet
 		foreach ($this->values as $entity)
 		{
 			$report=$entity->request($code);
-			if ( ($report instanceof Report_resolution) && ($report->resolution==$value) ) return true;
-			elseif ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);
+			if ( ($report instanceof \Report_resolution) && ($report->resolution==$value) ) return true;
+			elseif ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);
 		}
 		if (empty($tasks)) return false;
 		else return Task_delayed_call::with_call(new Call([$this, 'has_subvalue'], $code, $value), $tasks);
 	}
 }
 
-class Validator_subentity_exists extends Validator
+class Validator_subentity_exists extends \Pokeliga\Data\Validator
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_GET_ENTITY=0,
@@ -510,17 +440,17 @@ class Validator_subentity_exists extends Validator
 	{
 		if ($this->step===static::STEP_GET_ENTITY)
 		{
-			if ( ($this->value->content()===null) && ($this->in_value_model('null')) && ($this->value_model_now('null')) ) return $this->sign_report(new Report_success());
-			if (!($this->value instanceof Value_provides_entity)) return $this->sign_report(new Report_impossible('bad_value'));
+			if ( ($this->value->content()===null) && ($this->in_value_model('null')) && ($this->value_model_now('null')) ) return $this->sign_report(new \Report_success());
+			if (!(duck_instanceof($this->value, '\Pokeliga\Entity\Value_links_entity'))) return $this->sign_report(new \Report_impossible('bad_value'));
 			$entity=$this->value->get_entity();
 			if ($entity instanceof Entity) return $this->advance_step();
-			if (empty($entity)) return $this->sign_report(new Report_impossible('no_entity'));
-			return $entity; // Report_impossible или Report_task.
+			if (empty($entity)) return $this->sign_report(new \Report_impossible('no_entity'));
+			return $entity; // \Report_impossible или \Report_task.
 		}
 		elseif ($this->step===static::STEP_ANALYZE_ENTITY)
 		{
 			$entity=$this->value->get_entity();
-			if ($entity instanceof Report_impossible) return $entity;
+			if ($entity instanceof \Report_impossible) return $entity;
 			
 			$this->entity=$entity;
 			$result=$entity->exists(false);
@@ -535,8 +465,8 @@ class Validator_subentity_exists extends Validator
 	
 	public function bool_to_report($result)
 	{
-		if ($result===true) return $this->sign_report(new Report_success());
-		if ($result===false) return $this->sign_report(new Report_impossible('entity_doesnt_exist'));
+		if ($result===true) return $this->sign_report(new \Report_success());
+		if ($result===false) return $this->sign_report(new \Report_impossible('entity_doesnt_exist'));
 		return $result;
 	}
 }
@@ -548,18 +478,36 @@ class Validator_subentity_not_self extends Validator_subentity_exists
 		if ($this->step===static::STEP_ANALYZE_ENTITY)
 		{
 			$entity=$this->value->get_entity();
-			if ($entity instanceof Report_impossible) return $entity;
+			if ($entity instanceof \Report_impossible) return $entity;
 			
 			$this->entity=$entity;
 			$ego=null;
 			
-			if (empty($this->value->master)) return $this->sign_report(new Report_impossible('bad_value_master'));
+			if (empty($this->value->master)) return $this->sign_report(new \Report_impossible('bad_value_master'));
 			elseif ($this->value->master instanceof DataSet) $ego=$this->value->master->entity;
 			elseif ($this->value->master instanceof FieldSet_provides_entity) $ego=$this->value->master->entity();
-			else return $this->sign_report(new Report_impossible('bad_value_master'));
+			else return $this->sign_report(new \Report_impossible('bad_value_master'));
 			
-			if ($this->entity->equals($ego)) return $this->sign_report(new Report_impossible('subentity_is_self'));
-			return $this->sign_report(new Report_success());
+			if ($this->entity->equals($ego)) return $this->sign_report(new \Report_impossible('subentity_is_self'));
+			return $this->sign_report(new \Report_success());
+		}
+		return parent::run_setup();
+	}
+}
+
+// проверяет группу айди заключённой сущности. не путать с типом!
+class Validator_subentity_group_is extends Validator_subentity_exists
+{
+	public function run_step()
+	{
+		if ($this->step===static::STEP_ANALYZE_ENTITY)
+		{
+			$entity=$this->value->get_entity();
+			if ($entity instanceof \Report_impossible) return $entity;
+			
+			$good_group=$this->value_model_now('subentity_group_is');
+			if ($entity->id_group!==$good_group) return $this->sign_report(new \Report_impossible('bad_id_group'));
+			return $this->sign_report(new \Report_success());
 		}
 		return parent::run_setup();
 	}
@@ -584,7 +532,7 @@ class Validator_subentity_value_is extends Validator_subentity_exists
 		if ($this->step===static::STEP_ANALYZE_ENTITY)
 		{
 			$entity=$this->value->get_entity();
-			if ($entity instanceof Report_impossible) return $entity;
+			if ($entity instanceof \Report_impossible) return $entity;
 			$this->entity=$entity;
 			// проверки существования не требуется, потому что она делается в рамках valid_content_request()
 
@@ -592,32 +540,32 @@ class Validator_subentity_value_is extends Validator_subentity_exists
 			foreach ($this->subentity_values() as $code=>$content)
 			{
 				$result=$this->entity->valid_content_request($code);
-				if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
-				if ($result instanceof Report_impossible) return $result;
+				if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+				if ($result instanceof \Report_impossible) return $result;
 				
-				if ($content instanceof Task) $tasks[]=$content;
+				if ($content instanceof \Pokeliga\Task\Task) $tasks[]=$content;
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_COMPARE_VALUES)
 		{
 			foreach ($this->subentity_values() as $code=>$content)
 			{
-				if ($content instanceof Task)
+				if ($content instanceof \Pokeliga\Task\Task)
 				{
 					if ($content->failed()) return $content->report();
 					$content=$content->resolution;
 				}
 				$current_content=$this->entity->valid_content($code);
-				if ($current_content instanceof Report_impossible) return $current_content;
+				if ($current_content instanceof \Report_impossible) return $current_content;
 				$result=$this->compare_content($current_content, $content);
 				if ($result===false)
 				{
-					return $this->sign_report(new Report_impossible('bad_strict_content'));
+					return $this->sign_report(new \Report_impossible('bad_strict_content'));
 				}
 			}
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 		else return parent::run_step();
 	}
@@ -673,9 +621,9 @@ class Validator_subentity_backlinks extends Validator_subentity_value_is
 	}
 }
 
-class Validator_all_ids_exist extends Validator
+class Validator_all_ids_exist extends \Pokeliga\Data\Validator
 {
-	use Task_inherit_dependancy_failure;
+	use \Pokeliga\Task\Task_inherit_dependancy_failure;
 	
 	public
 		$providers_set=false;
@@ -699,7 +647,7 @@ class Validator_all_ids_exist extends Validator
 				$this->impossible('invalid_player');
 				return;
 			}
-			elseif ($result instanceof Report_tasks)
+			elseif ($result instanceof \Report_tasks)
 			{
 				$result->register_dependancies_for($this);
 				$this->providers_set=true;
@@ -714,7 +662,7 @@ interface Select_has_range_validator
 	public function get_range_validator($value);
 }
 
-class Validator_id_in_range extends Validator
+class Validator_id_in_range extends \Pokeliga\Data\Validator
 {
 	public
 		$subvalidator;

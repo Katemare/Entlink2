@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Template;
 
 function parse_blocks($text, $brackets=['(', ')'], &$has_blocks)
 {
@@ -217,12 +218,12 @@ function parse_keyword($brackets_content, $strings, &$next_codefrag_id, &$next_p
 				{
 					$sub_next_codefrag_id=$next_codefrag_id;
 					$subexpr=CodeFragment_expression::parse_instance($m['value'], $strings, $sub_next_codefrag_id, $main_frag_id);
-					if ($subexpr instanceof Report_resolution)
+					if ($subexpr instanceof \Report_resolution)
 					{
 						$value=var_export($subexpr->resolution, true);
 						$m['op']='=';
 					}
-					elseif ($subexpr instanceof Report_impossible) die ('BAD SUBEXPR');
+					elseif ($subexpr instanceof \Report_impossible) die ('BAD SUBEXPR');
 					else
 					{
 						$next_codefrag_id=$sub_next_codefrag_id;
@@ -538,7 +539,7 @@ class CodeFragment_expression extends CodeFragment
 	{
 		$parsed=static::parse_expression($content, $strings, $next_codefrag_id);
 		
-		if ($parsed instanceof Report) return $parsed;
+		if ($parsed instanceof \Report) return $parsed;
 		
 		$codefrags=$parsed['codefrags'];
 		$args=['expression'=>$parsed['expression'], 'precalc'=>$parsed['precalc']];
@@ -628,7 +629,7 @@ class CodeFragment_expression extends CodeFragment
 			}			
 		}
 		
-		if ($constant) return new Report_resolution(eval('return '.$result.';'));
+		if ($constant) return new \Report_resolution(eval('return '.$result.';'));
 		
 		$return=
 		[
@@ -791,7 +792,7 @@ class CodeFragment_expression extends CodeFragment
 		$codefrags=[];
 		$sub_next_codefrag_id=$next_codefrag_id;
 		$subexpr=static::parse_instance($brackets_content, $strings, $sub_next_codefrag_id, $main_frag_id);
-		if ($subexpr instanceof Report_resolution)
+		if ($subexpr instanceof \Report_resolution)
 			return
 			[
 				'replace'	=> $subexpr->resolution,
@@ -801,7 +802,7 @@ class CodeFragment_expression extends CodeFragment
 				'precalc'	=> []
 			];
 		
-		if ($subexpr instanceof Report_impossible) die ('BAD SUBEXPR');
+		if ($subexpr instanceof \Report_impossible) die ('BAD SUBEXPR');
 		$next_codefrag_id=$sub_next_codefrag_id;		
 		$subexpr_precalc_id=$next_precalc_id++;
 		$codefrags+=$subexpr;
@@ -834,14 +835,14 @@ class CodeFragment_expression extends CodeFragment
 				if ($key['constant']!==true) die ('UNIMPLEMENTED YET: variable_array');
 				
 				$value=static::parse_instance($m['value'], $strings, $sub_next_codefrag_id, $main_frag_id);
-				if (!($value instanceof Report_resolution)) die ('UNIMPLEMENTED YET: variable_array');
+				if (!($value instanceof \Report_resolution)) die ('UNIMPLEMENTED YET: variable_array');
 				
 				$array[]=$key['replace'].'=>'.var_export($value->resolution, true);
 			}
 			else
 			{
 				$value=static::parse_instance($element, $strings, $sub_next_codefrag_id, $main_frag_id);
-				if ($value instanceof Report_resolution) $array[]=var_export($value->resolution, true);
+				if ($value instanceof \Report_resolution) $array[]=var_export($value->resolution, true);
 				else die ('UNIMPLEMENTED YET: variable_array');
 			}
 		}
@@ -991,8 +992,8 @@ class CodeFragment_echo extends CodeFragment_command
 		$codefrags=[];
 		$expr_next_codefrag_id=$next_codefrag_id;
 		$expression=CodeFragment_expression::parse_instance($content, $strings, $expr_next_codefrag_id, $expression_frag_id);
-		if ($expression instanceof Report_impossible) return;
-		if ($expression instanceof Report_resolution) $content=var_export($expression->resolution, true);
+		if ($expression instanceof \Report_impossible) return;
+		if ($expression instanceof \Report_resolution) $content=var_export($expression->resolution, true);
 		else
 		{
 			$next_codefrag_id=$expr_next_codefrag_id;
@@ -1036,8 +1037,8 @@ class CodeFragment_if extends CodeFragment_command
 		$codefrags=[];
 		$expr_next_codefrag_id=$next_codefrag_id;
 		$expression=CodeFragment_expression::parse_instance($condition, $strings, $expr_next_codefrag_id, $expression_frag_id);
-		if ($expression instanceof Report_impossible) return;
-		if ($expression instanceof Report_resolution) $condition=var_export($expression->resolution, true);
+		if ($expression instanceof \Report_impossible) return;
+		if ($expression instanceof \Report_resolution) $condition=var_export($expression->resolution, true);
 		else
 		{
 			$next_codefrag_id=$expr_next_codefrag_id;

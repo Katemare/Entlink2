@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Retriever;
 
 // class_alias('Request_by_field', 'Request_links'); // реализация запросов к таблицам вроде "эволюция покемонов" никак не отличается от обычного запроса к таблице по значениям полей.
 // сама команда class_alias() находится в Request.php, чтобы не включать этот файл ради одной её.
@@ -36,7 +37,7 @@ class Request_links_with_relations extends Request_links
 	
 	public function is_ready()
 	{
-		if (empty($this->relations)) return $this->sign_report(new Report_impossible('no_relations'));
+		if (empty($this->relations)) return $this->sign_report(new \Report_impossible('no_relations'));
 		return true;
 	}
 	
@@ -49,7 +50,7 @@ class Request_links_with_relations extends Request_links
 	
 	public function set_relations($relations)
 	{
-		if (empty($relations)) return $this->sign_report(new Report_impossible('no_relations'));
+		if (empty($relations)) return $this->sign_report(new \Report_impossible('no_relations'));
 		if ( (is_array($relations)) && (in_array('all', $relations)) ) $relations='all';
 		if ($this->relations==='all') return;
 		if ($relations==='all')

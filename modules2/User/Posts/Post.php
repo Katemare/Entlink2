@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 /*
 WIP
 в отличие от Contribution, которое просто обеспечивает необходимость многих сущностей в единообразных описаниях и авторстве, это - настоящая публикация, предназначенная для демонстрации пользователям в лентах обновлений, с метками и так далее.
@@ -99,7 +101,7 @@ class Post_info extends Aspect
 		[
 			'post_pool'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'PostPool',
 				'import'=>['link_rules']
 			],
@@ -125,11 +127,6 @@ class Post_info extends Aspect
 			[
 				'type'=>'linkset',
 				'id_group'=>'Tagged'
-			],
-			'tagspace'=>
-			[
-				'type'=>'linkset',
-				'select'=>'tagspace'
 			],
 			'collections'=>
 			[
@@ -193,7 +190,7 @@ class UserLog_about_Post extends UserLog_standard
 		[
 			'subject'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Post'
 			],
 		],

@@ -1,8 +1,10 @@
 <?
 
+namespace Pokeliga\Entity;
+
 class EntityPool
 {
-	use Object_id;
+	use \Pokeliga\Entlink\Object_id;
 	
 	const
 		MODE_READ_ONLY=1,	// если значение стало FILLED, оно уже не меняется. не требуются действия, срабатывающие после изменения сущностей, и можно активно кэшировать значения.
@@ -72,14 +74,20 @@ class EntityPool
 		return $entity;
 	}
 	
-	public function entity_from_provider($provider_data, $id_group)
+	public function entity_from_provider($provider_data, $id_group=null)
 	{
 		$entity=Entity::from_provider($provider_data, $id_group, $this);
 		// регистрация сущности в пуле осуществляется в рамках метода setup() этой сущности, после того, как данные сформировались.
 		return $entity;
 	}
 	
-	public function new_entity($id_group)
+	public function new_entity($id_group=null)
+	{
+		$entity=Entity::create_new($id_group, $this);
+		return $entity;
+	}
+	
+	public function virtual_entity($id_group=null)
 	{
 		$entity=Entity::create_new($id_group, $this);
 		return $entity;
@@ -132,8 +140,8 @@ class EntityPool
 		{
 			if ($entity->pool!==$this) die ('ENTITY FROM WRONG POOL');
 			$result=$entity->validate_request();
-			if ( ($if_all_valid) && ($result instanceof Report_impossible) ) return $this->sign_report(new Report_impossible('not_all_valid')); // этот отчёт может придти по разным причинам - потому что сущность находится в состоянии FAILED, потому что по тем или иным причинам даже процесс валидации начать невозможно, потому что валидатор признал данные неверными... главное, что сущность не подлежит сохранению в БД в таком случае.
-			if ($result instanceof Report_tasks) $validators[$entity->object_id]=$result;
+			if ( ($if_all_valid) && ($result instanceof \Report_impossible) ) return $this->sign_report(new \Report_impossible('not_all_valid')); // этот отчёт может придти по разным причинам - потому что сущность находится в состоянии FAILED, потому что по тем или иным причинам даже процесс валидации начать невозможно, потому что валидатор признал данные неверными... главное, что сущность не подлежит сохранению в БД в таком случае.
+			if ($result instanceof \Report_tasks) $validators[$entity->object_id]=$result;
 		}
 	
 		foreach ($validators as $entity_id=>$report)
@@ -142,7 +150,7 @@ class EntityPool
 			$process->complete();
 			if ($process->failed())
 			{
-				if ($if_all_valid) return $this->sign_report(new Report_impossible('not_all_valid'));
+				if ($if_all_valid) return $this->sign_report(new \Report_impossible('not_all_valid'));
 				unset($entities[$entity_id]);
 			}
 		}

@@ -1,12 +1,15 @@
 <?
+namespace Pokeliga\Nav;
 
-// суть класса двойная: во-первых, представлять понятие страницы; во-вторых, выполнять шаги, общие для всей работы с данной страницей - в частности, ввод и проверка пригодности ввода.
+// суть класса двойная: во-первых, представлять понятие страницы; во-вторых, выполнять шаги, общие для всей работы с данной страницей - в частности, ввод и проверка пригодности ввода, проверка прав.
 // страницу можно получить двумя способами: запрос по URL (разбирает Router) или запрос у сущности, модуля или другого объекта. В первом случае обычно запрашивает пользователь и хочет увидеть страницу или выполнить связанную с ней операцию; во втором случае обычно требуется получить адрес, название, расположение или другие параметры страницы - скажем, ссылку на профиль покемона, упомянутого на странице.
-// как правило, классы страниц должны полагаться на данные модели во всём, касающимся специфики выполнения. только некоторые специфические классы странц могут наверняка знать единственную цель, для которой они применяются.
+// как правило, классы страниц должны полагаться на данные модели во всём, касающемся специфики выполнения. только некоторые специфические классы странц могут наверняка знать единственную цель, для которой они применяются.
 
-abstract class Page extends Task implements Pathway, SiteNode
+// важно, чтобы права доступа проверялись именно здесь, а не в маршрутизаторе (роутере)! кто знает, как может использоваться страница: например, ссылки на неё могут даваться из других страниц или даже показываться "окно" в содержимое в некоторых случаях. это не должно давать доступ к секретным страницам в обход обычных прав. в случае, если не хватает прав, страница может как показать специфическую ошибку, так и маскировочную страницу "плохая страница". заголовок, хлебные крошки и другие параметры тоже могут быть доступны или не доступны в зависимости от прав.
+
+abstract class Page extends \Pokeliga\Task\Task implements \Pokeliga\Data\Pathway, SiteNode
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 
 	const
 		STEP_GET_INPUT=0,
@@ -20,11 +23,11 @@ abstract class Page extends Task implements Pathway, SiteNode
 		PRIORITY_LAST=30,
 		PRIORITY_DEFAULT=Page::PRIORITY_LAST,
 		
-		INPUTSET_CLASS	='InputSet',
-		PROCESSOR_CLASS	='PageProcessor',	// replace_me
-		LOCATOR_CLASS	='PageLocator',
-		TITLE_CLASS		='PageTitle',
-		BREADCRUMBS_TASK='PageBreadcrumbs',
+		INPUTSET_CLASS	='Pokeliga\Data\InputSet',
+		PROCESSOR_CLASS	='Pokeliga\Nav\PageProcessor',	// replace_me
+		LOCATOR_CLASS	='Pokeliga\Nav\PageLocator',
+		TITLE_CLASS		='Pokeliga\Nav\PageTitle',
+		BREADCRUMBS_TASK='Pokeliga\Nav\PageBreadcrumbs',
 		
 		UNTITLED_PAGE_KEY='standard.untitled_page';
 	
@@ -34,13 +37,18 @@ abstract class Page extends Task implements Pathway, SiteNode
 		$input_model=[],	// модель для пользовательского ввода из GET/POST (обычно)
 		$direct_input=false,	// можно ли странице самой вводить данные пользователя или только полагаться на поданное ей движком - query.
 		$query_to_input=0, // количество аргументов в $query (см. apply_query()), которые один к одному накладываются на $input_model. остальные считываются по названиям.
-		$url_formation=Router::URL_UNKNOWN, // при обращении к странице по URL сюда сохраняется формат URL.
-		$proper_url_formation=null,	// формат "правильного", канонического URL.
 		$route=null,				// фрагменты пути при обращении по URL.
 		$page_model=[],			// данные, по которым была создана страница. обычно содержат класс и ключ шаблона, но иногда и другие параметры, например, данные для правильного URL.
 		$input=null,				// сюда записывается объект InputSet для ввода.
 		$initial_query=null, // первоначальный ввод из URL, для воспроизведения первоначального URL.
-		$pool=EntityPool::MODE_READ_ONLY;
+		$pool=\Pokeliga\Entity\EntityPool::MODE_READ_ONLY;
+	
+	public static function with_route($route)
+	{
+		$page=new static();
+		$page->record_route($route);
+		return $page;
+	}
 	
 	public function pool()
 	{
@@ -68,21 +76,13 @@ abstract class Page extends Task implements Pathway, SiteNode
 	
 	public function record_route($route)
 	{
-		if (!is_array($route)) $route=['url_formation'=>$route];
-		$this->route=[];
-		if (array_key_exists('url_formation', $route)) $this->url_formation=$route['url_formation'];
-		if ($this->url_formation===Router::URL_UNKNOWN) return;
-		if (empty(Router::$url_formations[$this->url_formation])) return;
-		foreach (Router::$url_formations[$this->url_formation]['parts'] as $code)
-		{
-			if (array_key_exists($code, $route)) $this->route[$code]=$route[$code];
-		}
+		// WIP
+		$this->route=$route;
 	}
 	
 	public function relevant_module()
 	{
-		if (!empty($this->module_slug)) return Engine()->module_by_slug($this->module_slug);
-		if (!array_key_exists('module_slug', $this->route)) return Engine()->module_by_slug($this->route['module_slug']);
+		// WIP
 	}
 	
 	public function apply_query($query)
@@ -134,7 +134,7 @@ abstract class Page extends Task implements Pathway, SiteNode
 			$this->get_inputset(); // чтобы произвести объект inputset, даже если ввода не поставлено.
 			if (!$this->direct_input) return $this->advance_step(); // ввод уже осуществлён из query.
 			$report=$this->fill_input();
-			if ($report instanceof Report_impossible) return $this->advance_step();
+			if ($report instanceof \Report_impossible) return $this->advance_step();
 			return $report;
 		}
 		elseif ($this->step===static::STEP_ANALYZE_INPUT)
@@ -148,7 +148,7 @@ abstract class Page extends Task implements Pathway, SiteNode
 		}
 		elseif ($this->step===static::STEP_FINISH)
 		{
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 	}
 	
@@ -159,7 +159,7 @@ abstract class Page extends Task implements Pathway, SiteNode
 		$inputset=$this->get_inputset();
 		if (empty($inputset)) return $this->advance_step();
 		$result=$inputset->input();
-		if ($result instanceof Report_success) return $this->advance_step();
+		if ($result instanceof \Report_success) return $this->advance_step();
 		return $result;
 	}
 	
@@ -253,6 +253,11 @@ abstract class Page extends Task implements Pathway, SiteNode
 		return $this->get_page_task('PROCESSOR');
 	}
 	
+	public function process()
+	{
+		return $this->get_processor_task()->complete();
+	}
+	
 	public function get_locator_task()
 	{
 		return $this->get_page_task('LOCATOR');
@@ -271,14 +276,12 @@ abstract class Page extends Task implements Pathway, SiteNode
 	
 	public function url()
 	{
-		if (empty($this->proper_url)) $this->proper_url=$this->generate_proper_url();
-		return $this->proper_url;
+		// WIP
 	}
 	
 	public function actual_url()
 	{
-		if ( ($this->url_formation===Router::URL_UNKNOWN) || ($this->initial_query===null) ) return $this->sign_report(new Report_impossible('no_definite_url'));
-		return Router()->compose_router_url($this->url_formation, $this->route, $this->initial_query);
+		// WIP
 	}
 	
 	# вернёт строку адреса, если необходим редирект. Например:
@@ -294,14 +297,14 @@ abstract class Page extends Task implements Pathway, SiteNode
 		$url_formation=null;
 		if (!empty($this->proper_url_formation)) $url_formation=$this->proper_url_formation;
 		elseif ($this->url_formation!==Router::URL_UNKNOWN) $url_formation=$this->url_formation;
-		else return $this->sign_report(new Report_impossible('no_definite_url'));
+		else return $this->sign_report(new \Report_impossible('no_definite_url'));
 		
 		$parts=Router::$url_formations[$url_formation];
 		$route=[];
 		foreach ($parts as $part)
 		{
 			$try = $this->url_part_from_model($part) || $this->url_part_from_route($part) || $this->generate_url_part($part);
-			if (empty($try)) return $this->sign_report(new Report_impossible('cant_generate_url'));
+			if (empty($try)) return $this->sign_report(new \Report_impossible('cant_generate_url'));
 			else $this->route[$part]=$try;
 		}
 		$query=$this->input_to_query();
@@ -383,9 +386,9 @@ abstract class Page extends Task implements Pathway, SiteNode
 		return [];
 	}
 	
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
-		return $this->sign_report(new Report_impossible('no_path'));
+		return $this->sign_report(new \Report_impossible('no_path'));
 	}
 }
 

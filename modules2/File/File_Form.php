@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\File;
 
 trait Form_image_delete
 {
@@ -25,21 +26,21 @@ trait Form_image_delete
 	// STUB! это должен быть такой же стандартный функционал с привлечением Keeper'ов, как сохранение.
 	public function create_valid_processor_delete()
 	{
-		if ($this->content_of('delete')!==true) return $this->sign_report(new Report_impossible('delete_not_approved'));
+		if ($this->content_of('delete')!==true) return $this->sign_report(new \Report_impossible('delete_not_approved'));
 		if (!$this->entity()->exists())
 			Router()->redirect(Router()->url('gallery/gallery.php'));
-			//return $this->sign_report(new Report_impossible('doesnt_exist')); 
+			//return $this->sign_report(new \Report_impossible('doesnt_exist')); 
 			
 		$queries=$this->delete_queries();
 		foreach ($queries as $query)
 		{
 			$result=Retriever()->run_query($query);
-			if ($result instanceof Report) return $result;
+			if ($result instanceof \Report) return $result;
 		}			
 		$this->redirect_after_delete();
 		
 		// до этой строчки не должно дойти.
-		return $this->sign_report(new Report_success());
+		return $this->sign_report(new \Report_success());
 	}
 	
 	public function delete_queries()
@@ -74,7 +75,7 @@ abstract class Form_image_point extends Form_entity
 		[
 			'image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'template'=>'hidden',
 				'for_entity'=>true
@@ -112,7 +113,7 @@ abstract class Form_image_point extends Form_entity
 			],
 			'parent_fragment'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'ImageLocation',
 				'template'=>'select_fragment',
 				'image_source'=>'image',
@@ -156,7 +157,7 @@ abstract class Form_image_point extends Form_entity
 		{
 			$image=$this->image();
 			$dimension=$image->value($value->code);
-			if ($dimension instanceof Report_impossible) $value->set_state(Value::STATE_FAILED);
+			if ($dimension instanceof \Report_impossible) $value->set_state(Value::STATE_FAILED);
 			else $value->set($dimension, Value::NEUTRAL_CHANGE);
 			return;
 		}
@@ -189,7 +190,7 @@ abstract class Form_image_point extends Form_entity
 	
 	public function redirect_successful()
 	{
-		Router()->redirect($this->entity()->value('image_entity')->value('with_locations_url'));
+		Router()->redirect($this->entity()->value('image')->value('with_locations_url'));
 	}
 }
 
@@ -230,7 +231,7 @@ class Form_image_edit_point extends Form_image_point
 		[
 			'id'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'template'=>'hidden',
 				'id_group'=>'ImageLocation',
 				'from_entity'=>true
@@ -243,7 +244,7 @@ class Form_image_edit_point extends Form_image_point
 			],
 			'image'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Image',
 				'from_entity'=>true
 			],
@@ -275,7 +276,7 @@ class Form_image_edit_point extends Form_image_point
 	
 	public function image()
 	{
-		return $this->entity()->value('image_entity');
+		return $this->entity()->value('image');
 	}
 	
 	public function create_valid_processor()
@@ -347,7 +348,7 @@ abstract class Form_image_fragment extends Form_image_point
 	
 	public function redirect_successful()
 	{
-		Router()->redirect($this->produce_value('image_entity')->value('with_locations_url'));
+		Router()->redirect($this->produce_value('image')->value('with_locations_url'));
 	}
 }
 
@@ -376,7 +377,7 @@ class Form_image_edit_fragment extends Form_image_fragment
 		[
 			'id'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'template'=>'hidden',
 				'id_group'=>'ImageLocation',
 				'from_entity'=>true
@@ -429,7 +430,7 @@ class Form_image_edit_fragment extends Form_image_fragment
 	
 	public function image()
 	{
-		return $this->entity()->value('image_entity');
+		return $this->entity()->value('image');
 	}
 	
 	public function create_valid_processor()

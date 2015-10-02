@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // связи работ с пользователям нужны особые функции, например, потверждение упомянутым пользователем.
 
 class PostUserlink extends EntityType
@@ -39,12 +41,12 @@ class PostUserlink_basic extends Aspect
 		[
 			'post'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Post'
 			],
 			'user'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User'
 			],
 			'relation'=>
@@ -111,7 +113,7 @@ class UserLog_about_PostUserlink extends UserLog_standard
 		[
 			'subject'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'PostUserlink'
 			],
 		],

@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Template;
 
 interface Paged
 {
@@ -97,7 +98,7 @@ class Template_pages extends Template_from_db
 	
 	public function ValueHost_request($code)
 	{
-		if ($code==='hidden_pages') return $this->sign_report(new Report_resolution($this->has_hidden_pages()));
+		if ($code==='hidden_pages') return $this->sign_report(new \Report_resolution($this->has_hidden_pages()));
 		return parent::ValueHost_request($code);
 	}
 	

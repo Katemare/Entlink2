@@ -1,11 +1,28 @@
 <?
-class Module_Retriever extends Module
+namespace Pokeliga\Retriever;
+
+class Module_Retriever extends \Pokeliga\Entlink\Module
 {
-	use Module_autoload_by_beginning;
+	use \Pokeliga\Entlink\Module_autoload_by_beginning;
+	
+	const
+		FRONT_CLASS_NAME='Pokeliga\Retriever\RetrieverFront';
+	
 	static $instance=null;
 	
 	public
 		$name='Retriever',
+		$class_shorthands=
+		[
+			'Pokeliga\Retriever\RetrieverOperator'=>
+			[
+				'mysqli'
+			],
+			'Pokeliga\Retriever\QueryComposer'=>
+			[
+				'mysql'
+			]
+		],
 		$quick_classes=
 		[
 			'Retriever'					=>'Retriever',
@@ -15,6 +32,7 @@ class Module_Retriever extends Module
 			'RequestTicket'				=>'Request',
 			
 			'Query'						=>'Query',
+			'QueryComposer'				=>'QueryComposer',
 			
 			'Request_links_with_relations'	=>'Request_links',
 			'Request_generic_links'			=>'Request_links',
@@ -32,9 +50,21 @@ class Module_Retriever extends Module
 			'Request_modify_by_calls'	=>'Request_reuser',
 			'RequestTicket_modify_query'=>'Request_reuser',
 			
-			'Retriever_mysqli'			=>'Retriever_mysqli'
+			'RetrieverOperator_mysqli'	=>true,
+			'QueryComposer_mysql'		=>true
 		],
-		$classex='/^(?<file>Retriever|Request)/';
+		$classex='(?<file>Request)';
 }
 
+class RetrieverFront extends \Pokeliga\Entlink\ModuleFront
+{
+	public
+		$retriever;
+		
+	public function get_retriever()
+	{
+		if ($this->retriever===null) $this->retriever=new Retriever($this->config);
+		return $this->retriever;
+	}
+}
 ?>

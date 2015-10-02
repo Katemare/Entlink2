@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 // эта сущность описывает связь работы с меткой - будь то модераторская, пользовательская или иная (?).
 
 class Tagged extends EntityType
@@ -68,7 +70,7 @@ class Tagged_basic extends Aspect
 			],
 			'source_user'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'User'
 			],
 			'visible'=>
@@ -135,7 +137,7 @@ class Tagged_specific extends Aspect
 		[
 			'tag'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'null'=>true,
 				'const'=>null
 			],
@@ -177,7 +179,7 @@ class Tagged_by_official extends Tagged_specific
 		[
 			'tag'=>
 			[
-				'type'=>'id',
+				'type'=>'entity',
 				'id_group'=>'Tag'
 			]
 		],

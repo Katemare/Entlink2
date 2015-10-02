@@ -1,55 +1,7 @@
 <?
-// это несколько более умная версия вызова, которая знает о механизме зависимостей. Она хранит сведения о том, какие объекты связывает, чтобы после срабатывания (или из-за потери актуальности) убрать себя из списков и не мешать работе уборщика мусора, а также не создавать лишних, уже не нужных вызовов.
+namespace Pokeliga\Task;
 
-load_debug_concern('Task', 'Task');
-class Dependancy_call extends Call
-{
-	public
-		$master,	// объект, который ждёт вызова от зависимости.
-		$host,		// зависимость, пообещавшая совершить этот вызов при определённых обстоятельствах.
-		$pool='default';	// пул вызовов
-		
-	public function register($host, $pool='default')
-	{
-		$this->host=$host;
-		if ( ($this->master instanceof Task) && ($this->master->is_needed()) ) $this->host->increase_need_by($this->master);
-		$this->pool=$pool;
-		$this->host->add_call($this, $pool);
-		$this->register_at_master();
-	}
-	
-	public function register_at_master()
-	{
-		$this->master->dependancy_calls[$this->object_id]=$this;
-	}
-	
-	public function before_invoke()
-	{
-		$this->unregister();
-	}
-	
-	public function unregister()
-	{
-		if (is_object($this->host))
-		{
-			if ( ($this->master instanceof Task) && ($this->master->is_needed()) ) $this->host->decrease_need_by($this->master); // если родительская задача была не нужна, то она и не добавляла единичку зависимости.
-			unset($this->host->caller_calls[$this->pool][$this->object_id]);
-		}
-		$this->unregister_at_master();
-	}
-	
-	public function unregister_at_master()
-	{
-		unset($this->master->dependancy_calls[$this->object_id]);
-	}
-	
-	public function bindTo($object)
-	{
-		$new_call=parent::bindTo($object);
-		$new_call->master=$object;
-		return $new_call;
-	}
-}
+load_debug_concern(__DIR__, 'Task');
 
 // интерфейс для задач, которые служат для отложенного получения результатов: например, отложенное получение шаблона у неподтверждённой сущности. Нужно потому, что необходимый шаблон может требовать некоторой обработки, как только будет получен. Кроме того, такие задачи-оболочки в качестве своего результата сохраняют результат выполнения внутренней задачи.
 interface Task_proxy
@@ -57,9 +9,9 @@ interface Task_proxy
 	// конкретных методов не требуется. Главное, чтобы в момент получения целевой задачи объект задействовал крючок "proxy_resolved" с двумя аргументами - собой (ввиду Caller_backreference) и получившейся задачей. иногда в роли результата может быть не задача, а значение - например, в случае обращения к значению сущности.
 }
 
-abstract class Task
+abstract class Task implements \Pokeliga\Entlink\Promise
 {
-	use Caller_backreference, Object_id, Report_spawner, Logger_Task;
+	use \Pokeliga\Entlink\Caller_backreference, \Pokeliga\Entlink\Object_id, Logger_Task;
 
 	const
 		MAX_ITERATIONS=100,
@@ -93,40 +45,133 @@ abstract class Task
 		return get_class($this).'['.$this->object_id.'] ('.$this->report()->human_readable().')';
 	}
 	
-	public function reset()
+	#####################################
+	### Реализация интерфейса Promise ###
+	#####################################
+	
+	public function completed() { return $this->complete!==null; }
+	public function successful() { return $this->complete===true; }
+	public function failed() { return $this->complete===false; }
+	public function resolution()
 	{
-		// if (!$this->completed()) die ('RESETTING UNFINISHED TASK');
-		$this->progressable=true;
-		$this->complete=null;
-		$this->resolution=null;
-		$this->dependancy_callback=null;
-		$this->unregister_dependancies();
-		$this->invalidate_report();
+		if ($this->successful()) return $this->resolution;
+		elseif ($this->failed()) return $this->report();
+		return new \Report_impossible('premature_resolution', $this);
+	}
+	public function report()
+	{
+		if ($this->report!==null) return $this->report;
+		$this->report=$this->create_report()->sign($this);
+		return $this->report;
+	}
+	private function create_report()
+	{
+		if ($this->complete===false) $report=new \Report_impossible($this->errors);
+		elseif ($this->complete===true) $report=new \Report_resolution($this->resolution);
+		elseif ($this->progressable===true) $report=new \Report_in_progress();
+		elseif ($this->progressable===static::STATE_DEPENDS) $report=new \Report_deps($this->subtasks);
+		else { vdump($this); vdump('UNKNOWN STATE 1:'); vdump($this->progressable); exit; }
+		return $report;
 	}
 	
-	public function completed()
+	public function register_dependancy_for($task, $identifier=null)
 	{
-		return $this->complete!==null;
+		$task->register_dependancy($this, $identifier);
+	}
+	public function to_task() { return $this; }
+	
+	########################
+	### Полезные функции ###
+	########################
+	
+	public function report_promise($promise=null)
+	{
+		if ($promise===null) $promise=$this;
+		return new \Report_promise($promise, $this);
+	}
+	public function report_dependancy($deps=null)
+	{
+		if ($deps===null) $deps=$this;
+		if (is_array($deps)) return new \Report_deps($deps, $this);
+		else return new \Report_dep($deps, $this);
+	}
+	public function report_impossible($errors)
+	{
+		return new \Report_impossible($errors, $this);
 	}
 	
-	public function successful()
+	public function to_need()
 	{
-		return $this->complete===true;
+		return new Need_one($this);
 	}
 	
-	public function failed()
+	public function to_optional_need()
 	{
-		return $this->complete===false;
+		return new Need_one($this, false);
 	}
+	
+	public function resolution_or_promise()
+	{
+		if ($this->completed()) return $this->resolution();
+		return $this->report_promise();
+	}
+	
+	public function resolution_or_need()
+	{
+		if ($this->completed()) return $this->resolution();
+		return $this->to_need();
+	}
+	
+	public function resolution_or_mandatory_need()
+	{
+		if ($this->completed()) return $this->resolution();
+		return $this->to_mandatory_need();
+	}
+	
+	public function standalone_resolution_or_promise()
+	{
+		$this->max_standalone_progress();
+		return $this->resolution_or_promise();
+	}
+	
+	public function standalone_resolution_or_need()
+	{
+		$this->max_standalone_progress();
+		return $this->resolution_or_need();
+	}
+	
+	public function standalone_resolution_or_mandatory_need()
+	{
+		$this->max_standalone_progress();
+		return $this->resolution_or_mandatory_need();
+	}
+	
+	public function requestless_resolution_or_promise()
+	{
+		$this->max_requestless_progress();
+		return $this->resolution_or_promise();
+	}
+	
+	public function requestless_resolution_or_need()
+	{
+		$this->max_requestless_progress();
+		return $this->resolution_or_need();
+	}
+	
+	public function requestless_resolution_or_mandatory_need()
+	{
+		$this->max_requestless_progress();
+		return $this->resolution_or_mandatory_need();
+	}
+	
+	#########################
+	### Механизм нужности ###
+	#########################
 	
 	public function is_needed() { return $this->need>0; }
-	public function needs() // генератор
-	{
-		foreach ($this->subtasks as $task) { yield ($task); }
-	}
 	public function increase_need_for($target)
 	{
-		if ($this->is_needed()) $target->increase_need_by($this);
+		if ($target===$this or $this->is_needed()) $target->increase_need_by($this);
 	}
 	public $debug_needers=[];
 	public function increase_need_by($who)
@@ -157,6 +202,16 @@ abstract class Task
 	{
 		foreach ($this->needs() as $task) { $task->decrease_need_by($this); }
 	}
+	public function set_standalone_need() { $this->increase_need_by($this); }
+	public function withdraw_standalone_need() { $this->decrease_need_by($this); }
+	public function needs() // генератор
+	{
+		foreach ($this->subtasks as $task) { yield ($task); }
+	}
+	
+	###########################
+	### Оболочка выполнения ###
+	###########################
 	
 	public function max_standalone_progress()
 	{
@@ -167,29 +222,44 @@ abstract class Task
 		}
 	}
 	
-	public function create_process()
+	public function max_requestless_progress()
 	{
-		return new Process_single_goal($this);
+		if ($this->completed()) return;
+		$this->set_standalone_need();
+		
+		$this->max_standalone_progress();
+		if (!$this->completed())
+		{
+			$process=$this->create_process();
+			$process->max_standalone_progress();
+		}
+		$this->withdraw_standalone_need();
 	}
-	
+		
 	public function complete()
 	{
 		if ($this->completed()) return;
 		$this->log('to_complete');
-		$process=$this->create_process();
-		$process->complete();
-		if ($process->failed()) $this->impossible($process->errors);
+		
+		$this->max_standalone_progress();
+		if (!$this->completed())
+		{
+			$process=$this->create_process();
+			$process->complete();
+		}
 		$this->finalize();
+	}
+	public function create_process()
+	{
+		debug('CREATING PROCESS for '.get_class($this).$this->object_id);
+		return new Process_single_goal($this);
 	}
 	
 	public function now()
 	{
 		$this->complete();
-		if ($this->failed()) return $this->report();
-		return $this->resolution;
+		return $this->resolution();
 	}
-	
-	public abstract function progress();
 	
 	public function finalize()
 	{
@@ -199,29 +269,71 @@ abstract class Task
 	public function finish($success=true)
 	{
 		if ($this->completed()) return;
-		if (!is_bool($success)) die ('INVALID SUCCESS');
+		if ($success instanceof \Report_final) $this->finish_by_report($success);
+		elseif ($success instanceof \Pokeliga\Entlink\Promise) $this->finish_by_promise($success);
+		elseif (is_bool($success)) $this->finish_by_bool($success);
+		else die ('INVALID SUCCESS');
+	}
+	
+	public function success() { $this->finish_by_bool(true); }
+	private function finish_by_bool($success=true)
+	{
+		if ($this->completed()) return;
 		$this->invalidate_report();
 		$this->unregister_dependancies();
 		$this->progressable=false;
 		$this->complete=$success;
 		
-		if ($success) $this->log('success');
-		else $this->log('failure');
+		if ($success)
+		{
+			$this->log('success');
+			$this->on_success();
+		}
+		else
+		{
+			$this->on_failure();
+			$this->log('failure');
+		}
+		$this->on_finish();
 		
-		$this->make_final_calls('complete'); // только несколько типов задач могут сбрасываться и запускаться снова, например, запросу (Request). но в этих случаях их обычно следует воспринимать как независимые задачи.
+		$this->make_final_calls('complete'); // только несколько типов задач могут сбрасываться и запускаться снова, например, запросы (Request). но в этих случаях их обычно следует воспринимать как независимые задачи.
 	}
+	
+	public function on_success() { }
+	public function on_failure() { }
+	public function on_finish() { }
+	
+	public function finish_by_promise($promise)
+	{
+		if ($this->completed()) return;
+		if (!$promise->completed()) die('FINISH BY UNCOMPLETED PROMISE');
+		if ($promise->failed()) $this->impossible($promise);
+		else $this->finish_with_resolution($promise->resolution());
+	}
+	public function finish_by_task($task) { $this->finish_by_promise($task); }
+	public function finish_by_report($report) { $this->finish_by_promise($report); }
 	
 	public function impossible($errors=null)
 	{
+		if ($this->completed()) return;
+		if ($errors instanceof \Pokeliga\Entlink\Promise)
+		{
+			if (!$errors->failed()) throw new \Exception('impossible() by non-failed Promise');
+			$errors=$errors->resolution();
+		}
+		if ($errors instanceof \Pokeliga\Entlink\ErrorsContainer) $errors=$errors->get_errors();
+		
 		if (is_array($errors)) $this->errors=$errors;
-		elseif (!is_null($errors)) $this->errors=[$errors];
-		$this->finish(false);
+		elseif ($errors!==null) $this->errors=[$errors];
+		
+		$this->finish_by_bool(false);
 	}
 	
 	public function finish_with_resolution($resolution)
 	{
+		if ($this->completed()) return;
 		$this->resolution=$resolution;
-		$this->finish();
+		$this->success();
 	}
 	
 	public function invalidate_report()
@@ -229,40 +341,78 @@ abstract class Task
 		$this->report=null;
 	}
 	
-	public function report()
-	{
-		if ($this->report!==null) return $this->report;
-		$this->report=$this->make_report();
-		$this->sign_report($this->report);
-		return $this->report;
-	}
+	public abstract function progress();
 	
-	public function make_report()
-	{
-		if ($this->complete===false) $report=new Report_impossible($this->errors);
-		elseif ($this->complete===true) $report=new Report_resolution($this->resolution);
-		elseif ($this->progressable===true) $report=new Report_in_progress();
-		elseif ($this->progressable===static::STATE_DEPENDS) $report=new Report_tasks($this->subtasks);
-		else { vdump($this); vdump('UNKNOWN STATE 1:'); vdump($this->progressable); exit; }
-		return $report;
-	}
+#############################
+### Механизм зависимостей ###
+#############################	
 	
 	public $dependancy_calls=[]; // этот массив нужен для одной вещи: если задача теряет необходимость раньше, чем выполнена задача-зависимость, открепить вызов зависимости
-	// FIX! если задача уже выполнена, то нужно сразу произвести действия, необходимые при её завершении.
-	public function register_dependancy($task, $identifier=null)
+	public function register_dependancy($promise, $identifier=null)
 	{
-		if ($task instanceof Report_task) $task=$task->task;
-		elseif (!($task instanceof Task)) { xdebug_print_function_stack(); vdump($task); vdump($this); die('NOT TASK DEP'); }
+		if (!($promise instanceof \Pokeliga\Entlink\Promise)) die('BAD DEPENDANCY');
+		if ($promise->completed())
+		{
+			$this->completed_dependancy($promise, $identifier);
+			return;
+		}
+		$task=$promise->to_task();	
 		if (array_key_exists($task->object_id, $this->subtasks)) return;
+	
 		$this->progressable=static::STATE_DEPENDS;
 		$this->invalidate_report();
 		$this->subtasks[$task->object_id]=$task;
 		$call=clone $this->dependancy_callback();
 		if ($identifier!==null) $call->post_args=[$identifier];
-		// объект вызова создаётся таким образом для того, чтобы функцию можно было наследовать и перегружать.
-		if ($task->completed()) { vdump('DEP'); vdump($task); vdump('ME'); vdump($this); debug_dump(); xdebug_print_function_stack(); die('COMPLETED DEPENDANCY'); } // $call($this); // FIX! возможно, при срабатывании этой ветви происходит ошибка.
-		else $call->register($task, 'complete');
+		$call->register($task, 'complete');
 	}
+	
+	public function register_dependancies($tasks, $identifier=null)
+	{
+		if ($tasks instanceof \Pokeliga\Entlink\Promise)
+		{
+			$this->register_dependancy($tasks, $identifier);
+			return;
+		}
+		if ($tasks instanceof \Pokeliga\Enlink\TasksContainer) $tasks=$tasks->get_tasks();
+		
+		foreach ($tasks as $key=>$task)
+		{
+			if ($identifier===null) $ident=null;
+			elseif (!is_array($identifier)) $ident=$identifier;
+			elseif (array_key_exists($key, $identifier)) $ident=$identifier[$key];
+			else $ident=null;
+			$this->register_dependancy($task, $ident);
+		}
+	}
+	
+	public function dependancy_resolved($task, $identifier=null)
+	{
+		$this->log('dep_resolved', ['task'=>$task]);
+		unset($this->subtasks[$task->object_id]);
+		$this->completed_dependancy($task, $identifier);
+		if (empty($this->subtasks)) $this->dependancies_resolved();	
+	}
+	
+	public function dependancies_resolved()
+	{
+		if ($this->completed()) return;
+		$this->unregister_dependancies(); // на случай, если это вызвано искусственно, потому что в зависимостях больше нет нужды.
+		$this->progressable=true;
+		$this->invalidate_report();
+		$this->log('progressable');
+		$this->make_calls('progressable');
+	}
+	
+	public function completed_dependancy($promise, $identifier=null)
+	{
+		if ($promise->successful()) $this->on_successful_dependancy($promise, $identifier);
+		else $this->on_failed_dependancy($promise, $identifier);
+		$this->on_completed_dependancy($promise, $identifier);
+	}
+	public function on_successful_dependancy($promise, $identifier=null) { }
+	public function on_failed_dependancy($promise, $identifier=null) { }
+	public function on_completed_dependancy($promise, $identifier=null) { }
 	
 	public function unregister_dependancies()
 	{
@@ -274,39 +424,10 @@ abstract class Task
 		$this->dependancy_calls=[];
 	}
 	
-	public function register_dependancies($tasks, $identifier=null)
-	{
-		if ($tasks instanceof Report_tasks) $tasks=$tasks->tasks;
-		foreach ($tasks as $key=>$task)
-		{
-			if ($identifier===null) $ident=null;
-			elseif (!is_array($identifier)) $ident=$identifiers;
-			elseif (array_key_exists($key, $identifier)) $ident=$identifier[$key];
-			else $ident=null;
-			$this->register_dependancy($task, $ident);
-		}
-	}
-	
-	public function dependancy_resolved($task, $identifier=null)
-	{
-		$this->log('dep_resolved', ['task'=>$task]);
-		unset($this->subtasks[$task->object_id]);
-		if (empty($this->subtasks)) $this->dependancies_resolved();	
-	}
-	
-	public function dependancies_resolved()
-	{
-		$this->unregister_dependancies(); // на случай, если это вызвано искусственно, потому что в зависимостях больше нет нужды.
-		$this->progressable=true;
-		$this->invalidate_report();
-		$this->log('progressable');
-		$this->make_calls('progressable');
-	}
-	
 	public $dependancy_callback=null;
 	public function dependancy_callback()
 	{
-		if (is_null($this->dependancy_callback)) $this->dependancy_callback=$this->create_dependancy_callback();
+		if ($this->dependancy_callback===null) $this->dependancy_callback=$this->create_dependancy_callback();
 		return $this->dependancy_callback;
 	}
 	
@@ -326,25 +447,47 @@ abstract class Task
 	public function pool()
 	{
 		if (!empty($this->pool)) return $this->pool;
-		return EntityPool::default_pool();
+		return \Pokeliga\Entity\EntityPool::default_pool();
 	}
 }
 
-trait Task_inherit_dependancies_success
+trait Task_resetable
 {
-	public function dependancies_resolved()
+	// во многих подходах Promise'ы не должны возвращаться к исходному состоянию. но это используется преимущественно с Request'ами к БД, которые может и можно было бы разделить на два класса - задача и менеджер - но зачем?
+	// но есть одно но. задача возвращается в "пустое" состояние, а не в то, в котором она была создана. например, некоторые задачи создаются с зарегистрированными зависимостями и не знали бы, что делать, если первый проход произойдёт в других условиях. так что этот метод для специального, осторожного пользования.
+	public function reset()
 	{
-		parent::dependancies_resolved();
-		$this->finish();
+		$this->progressable=true;
+		$this->complete=null;
+		$this->resolution=null;
+		$this->unregister_dependancies();
+		$this->invalidate_report();
 	}
 }
 
 trait Task_inherit_dependancy_failure
 {
-	public function dependancy_resolved($task, $identifier=null)
+	public function on_failed_dependancy($promise, $identifier=null)
 	{
-		if ($task->failed()) $this->impossible('inherited_failure');
-		parent::dependancy_resolved($task, $identifier);
+		$this->impossible($promise);
+		parent::on_failed_dependancy($promise, $identifier);
+	}
+}
+
+// эти задачи могут закончиться только результатом "истина" либо невозможностью. результат "ложь" превращается в невозможность, остальные конвертируются в "истину".
+trait Task_binary
+{
+	public
+		$task_binary=true;
+		
+	public function finish_boool($success=true)
+	{
+		if ($success and $this->task_binary)
+		{
+			if ($this->resolution===false) $success=false;
+			else $this->resolution===true;
+		}
+		parent::finish_by_bool($success);
 	}
 }
 
@@ -393,19 +536,23 @@ trait Task_steps
 		if ($this->completed()) return;
 		elseif ($result===null) $this->impossible('unknown_step: '.$this->step);
 		elseif ($result===true) return;
-		elseif ($result instanceof Report_tasks) $result->register_dependancies_for($this);
-		elseif ($result instanceof Report_impossible) $this->impossible($result->errors);
-		elseif ($result instanceof Report_success)
+		elseif ($result instanceof \Report_dependant)
 		{
-			if ($result instanceof Report_resolution) $this->resolution=$result->resolution;
-			$this->finish();
+			$result->register_dependancies_for($this);
+			if ($this->progressable===true) $this->move_forward(); // если все зависимости отказались уже выполненными.
 		}
+		elseif ($result instanceof \Report_final) $this->finish_by_report($result);
 		else { vdump('UNKNOWN RESULT: '); vdump($result); vdump($this); exit; }
 	}
 	
 	public function dependancies_resolved()
 	{
 		parent::dependancies_resolved();
+		$this->move_forward();
+	}
+	
+	public function move_forward()
+	{
 		if ($this->step!==null) $this->advance_step();
 	}
 	
@@ -424,10 +571,11 @@ trait Task_steps
 	// этот метод выполняет действия шага и возвращает следующее:
 	// true - следует продолжить обработку шагов. Переключение номера шага должно осуществляться внутри данного метода вручную! Единственное исключение - увеличение шага на 1 при отработке всех зависимостей.
 	// null - нераспознанный шаг, ошибка.
-	// объект класса Report - данная задача завершена, невозможна или имеет зависимости, которые требуют решения в рамках процесса.
+	// объект класса \Report - данная задача завершена, невозможна или имеет зависимости, которые требуют решения в рамках процесса.
 	public abstract function run_step();
 }
 
+// FIX: возможно, после обновления механизмов будет не нужна.
 class Task_delayed_call extends Task implements Task_proxy
 {
 	public
@@ -438,8 +586,8 @@ class Task_delayed_call extends Task implements Task_proxy
 	public static function with_call($call, $dependancy)
 	{
 		$task=new static();
-		if ($dependancy instanceof Report_tasks) $dependancy=$dependancy->tasks;
-		elseif ($dependancy instanceof Report) { vdump($dependancy); xdebug_print_function_stack(); die('BAD DEP'); }
+		if ($dependancy instanceof \Report_tasks) $dependancy=$dependancy->tasks;
+		elseif ($dependancy instanceof \Report) { vdump($dependancy); xdebug_print_function_stack(); die('BAD DEP'); }
 		if ( (is_array($dependancy)) && (count($dependancy)==1) ) $dependancy=reset($dependancy);
 		elseif (is_array($dependancy)) $dependancy=new Process_collection($dependancy);
 		$task->task=$dependancy;
@@ -460,13 +608,13 @@ class Task_delayed_call extends Task implements Task_proxy
 		{
 			$call=$this->call;
 			$result=$call();
-			if ($result instanceof Report_impossible) $this->impossible($result->errors);
-			elseif ($result instanceof Report_success)
+			if ($result instanceof \Report_impossible) $this->impossible($result->errors);
+			elseif ($result instanceof \Report_success)
 			{
-				if ($result instanceof Report_resolution) $this->resolution=$result->resolution;
+				if ($result instanceof \Report_resolution) $this->resolution=$result->resolution;
 				$this->finish();
 			}
-			elseif ($result instanceof Report_task)
+			elseif ($result instanceof \Report_task)
 			{
 				$this->task=$result->task;
 				$this->register_dependancy($this->task);
@@ -477,7 +625,7 @@ class Task_delayed_call extends Task implements Task_proxy
 				$this->make_calls('proxy_resolved', $this->final);
 				$this->register_dependancy($this->final);
 			}
-			elseif ($result instanceof Report_tasks) { vdump($result); die ('BAD DELAYED CALL'); }
+			elseif ($result instanceof \Report_tasks) { vdump($result); die ('BAD DELAYED CALL'); }
 			else
 			{
 				$this->resolution=$result;
@@ -488,6 +636,56 @@ class Task_delayed_call extends Task implements Task_proxy
 		{
 			$this->register_dependancy($this->task);
 		}
+	}
+}
+
+// это несколько более умная версия вызова, которая знает о механизме зависимостей. Она хранит сведения о том, какие объекты связывает, чтобы после срабатывания (или из-за потери актуальности) убрать себя из списков и не мешать работе уборщика мусора, а также не создавать лишних, уже не нужных вызовов.
+class Dependancy_call extends \Pokeliga\Entlink\Call
+{
+	public
+		$master,	// объект, который ждёт вызова от зависимости.
+		$host,		// зависимость, пообещавшая совершить этот вызов при определённых обстоятельствах.
+		$pool='default';	// пул вызовов
+		
+	public function register($host, $pool='default')
+	{
+		$this->host=$host;
+		if ( ($this->master instanceof Task) && ($this->master->is_needed()) ) $this->host->increase_need_by($this->master);
+		$this->pool=$pool;
+		$this->host->add_call($this, $pool);
+		$this->register_at_master();
+	}
+	
+	public function register_at_master()
+	{
+		$this->master->dependancy_calls[$this->object_id]=$this;
+	}
+	
+	public function before_invoke()
+	{
+		$this->unregister();
+	}
+	
+	public function unregister()
+	{
+		if (is_object($this->host))
+		{
+			if ($this->master instanceof Task) $this->host->decrease_need_by($this->master);
+			unset($this->host->caller_calls[$this->pool][$this->object_id]);
+		}
+		$this->unregister_at_master();
+	}
+	
+	public function unregister_at_master()
+	{
+		unset($this->master->dependancy_calls[$this->object_id]);
+	}
+	
+	public function bindTo($object)
+	{
+		$new_call=parent::bindTo($object);
+		$new_call->master=$object;
+		return $new_call;
 	}
 }
 ?>

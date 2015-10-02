@@ -1,4 +1,6 @@
 <?
+namespace Pokeliga\User;
+
 class Module_User extends Module implements ValueHost, Pathway
 {
 	use ValueHost_standard, Module_autoload_by_beginning
@@ -9,6 +11,13 @@ class Module_User extends Module implements ValueHost, Pathway
 	
 	public
 		$name='User',
+		$class_shorthands=
+		[
+			'Pokeliga\Data\ValueType'=>
+			[
+				'login', 'logins'
+			],
+		],
 		$track_code='users',
 		$quick_classes=
 		[
@@ -67,8 +76,8 @@ class Module_User extends Module implements ValueHost, Pathway
 		if ($code==='current_user')
 		{
 			$current_user=User::current_user();
-			if ( ($current_user instanceof Entity) && ($current_user->is_to_verify()) ) return $current_user->verify(false); // STUB
-			return $this->sign_report(new Report_resolution($current_user));
+			if ( ($current_user instanceof \Pokeliga\Entity\Entity) && ($current_user->is_to_verify()) ) return $current_user->verify(false); // STUB
+			return $this->sign_report(new \Report_resolution($current_user));
 		}
 		return $this->std_ValueHost_request($code);
 	}

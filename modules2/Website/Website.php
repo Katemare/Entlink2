@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Website;
 
 class Feeder // отвечает за область сообщений
 exec - представительный запрос.

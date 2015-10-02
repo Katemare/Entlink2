@@ -1,5 +1,7 @@
 <?
-load_debug_concern('Entity', 'Task_for_entity');
+namespace Pokeliga\Entity;
+
+load_debug_concern(__DIR__, 'Task_for_entity');
 
 trait Task_for_entity_methods
 {
@@ -10,11 +12,11 @@ trait Task_for_entity_methods
 		foreach ($codes as $code)
 		{
 			$result=$this->entity->request($code);
-			if ($result instanceof Report_impossible) return $result;
-			if ($result instanceof Report_tasks) $tasks=array_merge($tasks, $result->tasks);
+			if ($result instanceof \Report_impossible) return $result;
+			if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
 		}
-		if (empty($tasks)) return $this->sign_report(new Report_success());
-		return $this->sign_report(new Report_tasks($tasks));
+		if (empty($tasks)) return new \Report_success(, $this);
+		return new \Report_tasks($tasks, $this);
 	}
 	
 	public function pre_request($codes, $entity=null)
@@ -26,7 +28,7 @@ trait Task_for_entity_methods
 }
 
 // для задач, работающих с той или иной сущностью.
-abstract class Task_for_entity extends Task
+abstract class Task_for_entity extends \Pokeliga\Task\Task
 {
 	use Task_for_entity_methods;
 	
@@ -59,7 +61,7 @@ abstract class Task_for_entity extends Task
 // это задача собирает запросы, необходимые для сохранения данных сущности, и выполняет их. предполагает уже подтверждённую сущность, потому что для новую задача другая, в неподтверждённую не могли быть внесены изменения, а виртуальную не сохраняют.
 class Task_save_entity extends Task_for_entity
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_VERIFY_ENTITY=0,
@@ -81,7 +83,7 @@ class Task_save_entity extends Task_for_entity
 			if ($this->entity->is_to_verify())
 			{
 				$report=$this->entity->verify(false);
-				if ($report instanceof Report_successful) return $this->advance_step();
+				if ($report instanceof \Report_successful) return $this->advance_step();
 				return $report;
 			}
 			return $this->advance_step();
@@ -91,7 +93,7 @@ class Task_save_entity extends Task_for_entity
 			// этот блок пока не учитывает значения, которые по умолчанию отсутствуют. хотя их могут учесть их киперы.
 			// FIX: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
 			
-			if ($this->entity->state===Entity::STATE_FAILED) return $this->sign_report(new Report_impossible('saving_failed_entity'));
+			if ($this->entity->state===Entity::STATE_FAILED) return new \Report_impossible('saving_failed_entity', $this);
 			
 			$type=$this->entity->type;
 			foreach ($this->entity->dataset->values as $value)
@@ -99,14 +101,11 @@ class Task_save_entity extends Task_for_entity
 				// echo 'CODE '.$value->code.': save '.(int)$value->save_changes.', state '.$value->state.', content '; vdump($value->content);
 				if (!$value->save_changes) continue;
 				if ( ($value->in_value_model('keeper')) && ($value->value_model_now('keeper')===false) ) continue;
-				$value_class=Value::compose_prototype_class($value->value_model_now('type'));
-				if ($value instanceof Value_unkept) continue;
-				$keeper_code=$this->determine_keeper($value);
-				if ($keeper_code===false) continue;
-				$keeper=Keeper::for_value($value, $keeper_code);
+				$keeper=$value->get_keeper_task($value);
+				if (empty($keeper)) continue;
 				$this->keepers[]=$keeper;
 			}
-			if (empty($this->keepers)) return $this->sign_report(new Report_success());
+			if (empty($this->keepers)) return new \Report_success(, $this);
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_FILL)
@@ -119,10 +118,10 @@ class Task_save_entity extends Task_for_entity
 				$value=$keeper->value;
 				$report=$value->request();
 				// vdump($report);
-				if ($report instanceof Report_impossible) return $report;
-				if ($report instanceof Report_tasks) $fillers=array_merge($fillers, $report->tasks);
+				if ($report instanceof \Report_impossible) return $report;
+				if ($report instanceof \Report_tasks) $fillers=array_merge($fillers, $report->tasks);
 			}
-			if (!empty($fillers)) return $this->sign_report(new Report_tasks($fillers));
+			if (!empty($fillers)) return new \Report_tasks($fillers, $this);
 			return $this->advance_step();
 		}
 		// строго говоря, валидаторы и так получают значения прежде, чем их проверить. но кажется более правильным и безопасным сначала получить данные, а потом - сохранить.
@@ -133,8 +132,8 @@ class Task_save_entity extends Task_for_entity
 			{
 				if (!$value->save_changes) continue; // важно: этот параметр будет выставлен "true" даже у значений, которые не должны сохраняться в БД, однако потеряли актуальность из-за изменившихся значений, которые БУДУТ сохранены в БД. их всё равно нужно проверить на действительность для того, чтобы не сохранить значения, которые приведут в негодность другие.
 				$v=$value->is_valid(false);
-				if ($v===false) return $this->sign_report(new Report_impossible('invalid_value: '.$value->code));
-				elseif ($v instanceof Report_tasks) $validators=array_merge($validators, $v->tasks);
+				if ($v===false) return new \Report_impossible('invalid_value: '.$value->code, $this);
+				elseif ($v instanceof \Report_tasks) $validators=array_merge($validators, $v->tasks);
 				elseif ($v!==true) { vdump('BAD VALIDATION STATE 2'); vdump($v); vdump('CODE '.$value->code); exit; }
 			}
 			if (empty($validators))
@@ -142,9 +141,9 @@ class Task_save_entity extends Task_for_entity
 				$this->validation=true;
 				return $this->advance_step();
 			}
-			else $plan=ValidationPlan::from_validators($validators);
+			else $plan=\Pokeliga\Data\ValidationPlan::from_validators($validators);
 			$this->validation=$plan;
-			if ($plan instanceof Task) return $this->sign_report(new Report_task($plan));
+			if ($plan instanceof \Pokeliga\Task\Task) return new \Report_task($plan, $this);
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_SAVE)
@@ -155,7 +154,7 @@ class Task_save_entity extends Task_for_entity
 				($this->validation!==true) &&
 				!( (is_object($this->validation)) && ($this->validation->successful()))
 			)
-				return $this->sign_report(new Report_impossible('invalid_entity'));	
+				return new \Report_impossible('invalid_entity', $this);	
 			
 			$request_data=[];
 			foreach ($this->keepers as $keeper)
@@ -172,15 +171,15 @@ class Task_save_entity extends Task_for_entity
 				else $requests[]=$request;
 			}
 			if (empty($requests)) return $this->advance_step();
-			$process=new Process_collection($requests); // чтобы запросы выполнялись строго один за другим.
-			return $this->sign_report(new Report_task($process));
+			$process=new \Pokeliga\Task\Process_collection($requests); // чтобы запросы выполнялись строго один за другим.
+			return new \Report_task($process, $this);
 		}
 		elseif ($this->step===static::STEP_CACHE_RESET)
 		{
 			$task=$this->entity->task_request('postedit_reset_cache');
 			// ничего, если задачи не предусмотрено - это не заставит сохранение прекратиться.
-			if ($task instanceof Report_final) return $this->advance_step();
-			if ($task instanceof Report_tasks) return $task;
+			if ($task instanceof \Report_final) return $this->advance_step();
+			if ($task instanceof \Report_tasks) return $task;
 			die('BAD TASK REPORT');
 		}
 		elseif ($this->step===static::STEP_FINISH)
@@ -189,7 +188,7 @@ class Task_save_entity extends Task_for_entity
 			{
 				$value->save_changes=false;
 			}
-			return $this->sign_report(new Report_success());
+			return new \Report_success(, $this);
 		}
 	}
 	
@@ -209,7 +208,7 @@ class Task_save_entity extends Task_for_entity
 			'where'=>['id'=>$this->entity->db_id]
 		];
 		if (Retriever()->is_common_table($table)) $query['where']['id_group']=$this->entity->id_group;
-		$request=Request_update::from_query($query);
+		$request=\Pokeliga\Retriever\Request_update::from_query($query);
 		return $request;
 	}
 	
@@ -225,7 +224,7 @@ class Task_save_entity extends Task_for_entity
 				'table'=>Keeper_var::VAR_TABLE,
 				'where'=>['id'=>$this->db_id(), 'id_group'=>$this->entity->id_group, 'code'=>$fields['__delete']]
 			];
-			$result[]=Request_delete::from_query($request);
+			$result[]=\Pokeliga\Retriever\Request_delete::from_query($request);
 		}
 		
 		$more=false;
@@ -239,8 +238,8 @@ class Task_save_entity extends Task_for_entity
 		{
 			if ($field_code==='__delete') continue;
 			$more=true;
-			$base=['id'=>$this->db_id(), 'id_group'=>$this->entity->id_group, 'code'=>$field_code, 'index'=>null, 'number'=>null, 'str'=>null];
-			if (is_numeric(key($data)))
+			$base=['id'=>$this->db_id(), 'id_group'=>$this->entity->id_group, 'code'=>$field_code, 'index'=>0, 'number'=>null, 'str'=>null];
+			if ((is_array($data)) && (is_numeric(key($data))))
 			{
 				foreach ($data as $index=>$subdata)
 				{
@@ -249,7 +248,7 @@ class Task_save_entity extends Task_for_entity
 			}
 			else $request['values'][]=array_merge($base, $data);
 		}
-		if ($more) $result[]=Request_insert::from_query($request);
+		if ($more) $result[]=\Pokeliga\Retriever\Request_insert::from_query($request);
 		
 		return $result;
 	}
@@ -259,16 +258,8 @@ class Task_save_entity extends Task_for_entity
 		return $this->entity->db_id;
 	}
 	
-	public function determine_keeper($value)
+	public function completed_dependancy($task, $identifier=null)
 	{
-		if ($value->in_value_model('keeper')) return $value->value_model_now('keeper');
-		elseif (!empty($value->default_keeper)) return $value->default_keeper;
-		else return $value->master->default_keeper; // STUB
-	}
-	
-	public function dependancy_resolved($task, $identifier=null)
-	{
-		parent::dependancy_resolved($task, $identifier=null);
 		if ($task->failed()) { vdump($task); $this->impossible('subtask_failed'); }
 	}
 }
@@ -301,12 +292,12 @@ class Task_save_new_entity extends Task_save_entity
 			foreach ($type::$base_aspects as $aspect_code=>$basic_aspect)
 			{
 				$aspect=$this->entity->get_aspect($aspect_code, false);
-				if ($aspect instanceof Report_impossible) return $aspect;
-				elseif ($aspect instanceof Report_tasks) $tasks=array_merge($tasks, $aspect->tasks);
+				if ($aspect instanceof \Report_impossible) return $aspect;
+				elseif ($aspect instanceof \Report_tasks) $tasks=array_merge($tasks, $aspect->tasks);
 			}
 			
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return new \Report_tasks($tasks, $this);
 		}
 		elseif ($this->step===static::STEP_COLLECT_KEEPERS)
 		{
@@ -314,21 +305,16 @@ class Task_save_new_entity extends Task_save_entity
 			// FIX: кроме того, этот блок сам вычисляет кипера и разбирает параметры значения, хотя скорее всего либо оно должно само это делать, либо датасет за  него.
 			
 			foreach ($this->entity->dataset->model as $code=>$model)
-			{
-				if ( (array_key_exists('keeper', $model)) && ($model['keeper']===false) ) continue;
-				$value_class=Value::compose_prototype_class($model['type']);
-				if (is_a($value_class, 'Value_unkept', true)) continue;
-				
+			{				
 				$value=$this->entity->dataset->produce_value($code);
-				$keeper_code=$this->determine_keeper($value);
-				if ($keeper_code===false) continue;
-				// здесь могут быть созданы некоторые значения, не требующие сохранения, но две проверки выше пока что исключают все такие варианты.
+				$keeper=$value->get_keeper_task();
+				if (empty($keeper)) continue;
 				
 				$keeper=Keeper::for_value($value, $keeper_code);
 				if ($code==='id') $this->basic_keeper=$keeper;
 				else $this->keepers[]=$keeper;
 			}
-			if ($this->basic_keeper===null) return $this->sign_report(new Report_impossible('no_basic_keeper'));
+			if ($this->basic_keeper===null) return new \Report_impossible('no_basic_keeper', $this);
 			return $this->advance_step();
 		}
 		// elseif ($this->step===static::STEP_FILL) // ...
@@ -340,13 +326,13 @@ class Task_save_new_entity extends Task_save_entity
 			$request_data=[];
 			foreach ($keepers as $keeper)
 			{
-				if ($keeper->value instanceof Value_own_id) continue;
+				if (duck_instanceof($keeper->value, '\Pokeliga\Entity\Value_own_id')) continue;
 				$keeper->save($request_data);
 			}
 			if (count($request_data)>1) die ('BAD BASIC REQUEST');
 			$basic_table=$this->basic_keeper->table();
 			$request=$this->create_request($request_data[$basic_table], $basic_table);
-			return $this->sign_report(new Report_task($request));
+			return new \Report_task($request, $this);
 		}
 		// elseif ($this->step===static::STEP_SAVE) // ...
 		elseif ($this->step===static::STEP_FINISH)
@@ -398,7 +384,7 @@ class Task_save_new_entity extends Task_save_entity
 			'table'=>$table,
 			'value'=>$fields
 		];
-		$request=Request_insert::from_query($query);
+		$request=\Pokeliga\Retriever\Request_insert::from_query($query);
 		return $request;
 	}
 	
@@ -407,26 +393,25 @@ class Task_save_new_entity extends Task_save_entity
 		return $this->received_id;
 	}
 	
-	public function dependancy_resolved($task, $identifier=null)
+	public function completed_dependancy($task, $identifier=null)
 	{
-		if ( ($this->step===static::STEP_RECEIVE_ID) && ($task instanceof Request) )
+		if ( ($this->step===static::STEP_RECEIVE_ID) && ($task instanceof \Pokeliga\Retriever\Request) )
 		{
 			$this->received_id=$task->insert_id;
 		}
-		parent::dependancy_resolved($task, $identifier);
 	}
 }
 
-class Task_save_generic_links extends Task
+class Task_save_generic_links extends \Pokeliga\Task\Task
 {
-	use Task_inherit_dependancy_failure;
+	use \Pokeliga\Task\Task_inherit_dependancy_failure;
 	
 	public
 		$relation,
 		$linked_id_group=null,
 		$host_id_group=null,
 		
-		$position=Request_generic_links::FROM_OBJECT,
+		$position=\Pokeliga\Retriever\Request_generic_links::FROM_OBJECT,
 		$linked_type_field,
 		$host_type_field,
 		$linked_id_field,
@@ -451,7 +436,7 @@ class Task_save_generic_links extends Task
 	{
 		if (!$this->setup)
 		{
-			if ($this->position===Request_generic_links::FROM_OBJECT)
+			if ($this->position===\Pokeliga\Retriever\Request_generic_links::FROM_OBJECT)
 			{
 				$this->host_type_field='entity1_type';
 				$this->host_id_field='entity1_id';
@@ -476,8 +461,13 @@ class Task_save_generic_links extends Task
 				'where'=>[$this->host_type_field=>$this->host_id_group, $this->host_id_field=>$this->host->db_id, 'relation'=>$this->relation]
 			];
 		}
-		elseif ($this->request instanceof Request_delete) // не работает с тикетами! FIX?
+		elseif ($this->request instanceof \Pokeliga\Retriever\Request_delete) // не работает с тикетами! FIX?
 		{
+			if (empty($this->linked))
+			{
+				$this->finish();
+				return;
+			}
 			$query=
 			[
 				'action'=>'insert',
@@ -490,16 +480,16 @@ class Task_save_generic_links extends Task
 				$query['values'][]=[$this->linked_type_field=>$this->linked_id_group, $this->linked_id_field=>$id, $this->host_type_field=>$this->host_id_group, $this->host_id_field=>$this->host->db_id, 'relation'=>$this->relation];
 			}
 		}
-		elseif ($this->request instanceof Request_insert) return $this->finish(); // не работает с тикетами!
+		elseif ($this->request instanceof \Pokeliga\Retriever\Request_insert) return $this->finish(); // не работает с тикетами!
 		
-		$this->request=Request_single::from_query($query);
+		$this->request=\Pokeliga\Retriever\Request_single::from_query($query);
 		$this->register_dependancy($this->request);
 	}
 }
 
-class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
+class Task_resolve_entity_call extends Task_for_entity implements \Pokeliga\Task\Task_proxy
 {
-	use Task_steps, Logger_Task_for_entity;
+	use \Pokeliga\Task\Task_steps, Logger_Task_for_entity;
 	
 	const
 		STEP_VERIFY_ENTITY=0,	// запрос на подтверждение сущности.
@@ -512,7 +502,7 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 	
 	public function resolve()
 	{
-		return $this->sign_report(new Report_task($this));
+		return new \Report_task($this, $this);
 	}
 	
 	public function record_analysis($analysis)
@@ -552,7 +542,7 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 			if (!$this->requires_verification()) return $this->advance_step();
 			
 			$report=$this->entity->verify(false);
-			if ($report instanceof Report_final) return $this->advance_step();
+			if ($report instanceof \Report_final) return $this->advance_step();
 			return $report;
 		}
 		// STAB: вызовы могут проходить и по сущностям, которые не были найдены в БД, например, чтобы получить по запросу 'profile' шаблон "профиль ненайденного игрока".
@@ -562,7 +552,7 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 			// аспект необходимо получить даже перед обращением к датасету, поскольку установление аспекта влияет на модель датасета.
 			$aspect=$this->entity->get_aspect($this->aspect_code, false);
 			if ($aspect instanceof Aspect) return $this->advance_step();
-			return $aspect; // Report_impossible, Report_tasks
+			return $aspect; // \Report_impossible, \Report_tasks
 		}
 		elseif ($this->step===static::STEP_CALL)
 		{
@@ -574,11 +564,11 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 				$callback=[$aspect, $this->name];
 			}
 			$result=$callback (...$this->args);
-			if (! ($result instanceof Report)) $this->make_calls('proxy_resolved', $result);
+			if (! ($result instanceof \Report)) $this->make_calls('proxy_resolved', $result);
 			
-			if ( ($result instanceof Task) && ($this->mode!==EntityType::PAGE_NAME) ) return $this->sign_report(new Report_task($result));
-			if ( ($result instanceof Report_impossible) && ($this->model===EntityType::PAGE_NAME)) return $this->sign_report(new Report_resolution(null));
-			if ( !($result instanceof Report)) return $this->sign_report(new Report_resolution($result)); // единственный случай, когда возвращается не отчёт - это возвращение готового значения.
+			if ( ($result instanceof \Pokeliga\Task\Task) && ($this->mode!==EntityType::PAGE_NAME) ) return new \Report_task($result, $this);
+			if ( ($result instanceof \Report_impossible) && ($this->mode===EntityType::PAGE_NAME)) return new \Report_resolution(null, $this);
+			if ( !($result instanceof \Report)) return new \Report_resolution($result, $this); // единственный случай, когда возвращается не отчёт - это возвращение готового значения.
 			return $result;
 		}
 	}
@@ -589,9 +579,8 @@ class Task_resolve_entity_call extends Task_for_entity implements Task_proxy
 		parent::finish($success);
 	}
 	
-	public function dependancy_resolved($task, $identifier=null)
+	public function completed_dependancy($task, $identifier=null)
 	{
-		parent::dependancy_resolved($task, $identifier);
 		if ($this->step===static::STEP_FINISH)
 		{
 			if ($task->failed()) $this->impossible($task->errors);
@@ -621,13 +610,13 @@ class Task_for_entity_verify_id extends Task_for_entity
 	public function progress()
 	{
 		$this->prepare();
-		$data=Request_by_id::instance($this->table)->get_data_set($this->id);
-		if ($data instanceof Report_impossible)
+		$data=\Pokeliga\Retriever\Request_by_id::instance($this->table)->get_data_set($this->id);
+		if ($data instanceof \Report_impossible)
 		{
 			$this->entity->state=Entity::STATE_FAILED;
 			$this->impossible('unexistent');
 		}
-		elseif ($data instanceof Report_tasks) $data->register_dependancies_for($this);
+		elseif ($data instanceof \Report_tasks) $data->register_dependancies_for($this);
 		else
 		{
 			$this->entity->verified();
@@ -639,7 +628,7 @@ class Task_for_entity_verify_id extends Task_for_entity
 // в результате завершения этой задачи поля сущности должны быть заполнены. Хотя бы одна ошибка означает ошибку задачи.
 class Task_entity_value_request extends Task_for_entity
 {
-	use Task_inherit_dependancies_success, Task_inherit_dependancy_failure;
+	use \Pokeliga\Task\Task_inherit_dependancies_success, \Pokeliga\Task\Task_inherit_dependancy_failure;
 	
 	public
 		$to_request=[];
@@ -663,12 +652,12 @@ class Task_entity_value_request extends Task_for_entity
 		{
 			if (is_array($code))
 			{
-				$task=new Task_resolve_value_track($code, $this->entity);
+				$task=new \Pokeliga\Data\Task_resolve_value_track($code, $this->entity);
 				$this->register_dependancy($task);
 				continue;
 			}
 			$report=$this->entity->request($code);
-			if ($report instanceof Report_tasks) $this->register_dependancies($report->tasks);
+			if ($report instanceof \Report_tasks) $this->register_dependancies($report->tasks);
 		}
 		if (empty($this->subtasks)) $this->finish();
 	}
@@ -712,7 +701,8 @@ abstract class Task_determine_aspect extends Task_for_entity
 	public function modify_model($previous_aspect)
 	{
 		$aspect_class=$this->resolution;
-		$aspect_class::init();
+		$type=$this->entity->type;
+		$type::init_aspect($this->aspect_code, $aspect_class);
 		
 		foreach ($aspect_class::$common_model as $code=>$data)
 		{
@@ -739,25 +729,29 @@ abstract class Task_determine_aspect extends Task_for_entity
 }
 
 class Task_determine_aspect_by_param extends Task_determine_aspect
-{
-	const
-		ON_OFFICIAL	='Tagged_by_official',
-		ON_USER		='Tagged_by_user',
-		ON_LINK		='Tagged_suggested_link';
-	
-	public $requested=['tag_type']; // требуется только один параметр.
-
+{	
 	public function progress()
 	{
 		$param=$this->task_model['param'];
 		$this->requested=[$param];
 		$result=$this->entity->request($param);
-		if ($result instanceof Report_resolution)
+		if ($result instanceof \Report_resolution)
 		{
 			$result=$result->resolution;
 			$resolution=null;
 			if (array_key_exists($result, $this->task_model['by_value'])) $resolution=$this->task_model['by_value'][$result];
-			elseif ( (array_key_exists('default_aspect_base', $this->task_model)) && (class_exists($class=$this->task_model['default_aspect_base'].$result)) ) $resolution=$class;
+			elseif
+			(
+				(array_key_exists('default_aspect_base', $this->task_model) or array_key_exists('default_aspect_suffix', $this->task_model))
+				and class_exists
+				(
+					$class=
+						(empty($base=$this->task_model['default_aspect_base']) ? '' : $base)
+						.$result.
+						(empty($suff=$this->task_model['default_aspect_suffix']) ? '' : $suff)
+				)
+			)
+				$resolution=$class;
 			elseif (array_key_exists('default_aspect', $this->task_model)) $resolution=$this->task_model['default_aspect'];
 			if ($resolution===null) $this->impossible('bad_aspect_param');
 			else
@@ -766,15 +760,15 @@ class Task_determine_aspect_by_param extends Task_determine_aspect
 				$this->finish();
 			}
 		}
-		elseif ($result instanceof Report_tasks) $result->register_dependancies_for($this);
-		elseif ($result instanceof Report_impossible) $this->impossible('no_aspect_param');
+		elseif ($result instanceof \Report_tasks) $result->register_dependancies_for($this);
+		elseif ($result instanceof \Report_impossible) $this->impossible('no_aspect_param');
 	}
 }
 
 // опрашивает аспекты на предмет разрешения.
 class Task_calc_user_right extends Task_for_entity
 {
-	use Task_steps;
+	use \Pokeliga\Task\Task_steps;
 	
 	const
 		STEP_GATHER_ASPECTS=0,
@@ -818,31 +812,31 @@ class Task_calc_user_right extends Task_for_entity
 		elseif ($this->step===static::STEP_PREPARE_RIGHTS)
 		{
 			$result=$this->gather_aspects(true);
-			if ($result instanceof Report_impossible) return $result;
+			if ($result instanceof \Report_impossible) return $result;
 			
 			$tasks=[];
 			foreach ($this->aspects as $code=>$aspect)
 			{
 				$result=$aspect->supply_right(...$this->args);
-				if ($result instanceof Report_impossible) return $result; // если происходит ошибка и право выяснить невозможно, это считается за отказ.
-				elseif ($result===EntityType::RIGHT_FINAL_ALLOW) return $this->sign_report(new Report_resolution(true));
-				elseif ($result===EntityType::RIGHT_FINAL_DENY) return $this->sign_report(new Report_resolution(false));
-				elseif ($result instanceof Report_task)
+				if ($result instanceof \Report_impossible) return $result; // если происходит ошибка и право выяснить невозможно, это считается за отказ.
+				elseif ($result===EntityType::RIGHT_FINAL_ALLOW) return new \Report_resolution(true, $this);
+				elseif ($result===EntityType::RIGHT_FINAL_DENY) return new \Report_resolution(false, $this);
+				elseif ($result instanceof \Report_task)
 				{
 					$tasks[]=$result->task;
 					$this->rights[$code]=$result->task;
 				}
-				elseif ($result instanceof Report_tasks) { vdump($result); die('BAD RIGHT TASKS'); }
+				elseif ($result instanceof \Report_tasks) { vdump($result); die('BAD RIGHT TASKS'); }
 				else $this->rights[$code]=$result;
 			}
 			if (empty($tasks)) return $this->advance_step(static::STEP_ANALYZE_RIGHTS);
-			return $this->sign_report(new Report_tasks($tasks));
+			return new \Report_tasks($tasks, $this);
 		}
 		elseif ($this->step===static::STEP_GATHER_RIGHTS)
 		{
 			foreach ($this->rights as &$right_data)
 			{
-				if ($right_data instanceof Task)
+				if ($right_data instanceof \Pokeliga\Task\Task)
 				{
 					if ($right_data->failed()) return $right_data->report();
 					$right_data=$right_data->resolution;
@@ -855,14 +849,14 @@ class Task_calc_user_right extends Task_for_entity
 			$allow=null;
 			foreach ($this->rights as $right_data)
 			{
-				if ($right_data===EntityType::RIGHT_FINAL_ALLOW) return $this->sign_report(new Report_resolution(true));
-				if ($right_data===EntityType::RIGHT_FINAL_DENY) return $this->sign_report(new Report_resolution(false));
+				if ($right_data===EntityType::RIGHT_FINAL_ALLOW) return new \Report_resolution(true, $this);
+				if ($right_data===EntityType::RIGHT_FINAL_DENY) return new \Report_resolution(false, $this);
 				if ($right_data===EntityType::RIGHT_WEAK_DENY) $allow=false;
 				if ( ($right_data===EntityType::RIGHT_WEAK_ALLOW) && ($allow===null) ) $allow=true;
 			}
 			
-			if ($allow===true) return $this->sign_report(new Report_resolution(true));
-			return $this->sign_report(new Report_resolution(false));
+			if ($allow===true) return new \Report_resolution(true, $this);
+			return new \Report_resolution(false, $this);
 		}
 	}
 	
@@ -875,13 +869,13 @@ class Task_calc_user_right extends Task_for_entity
 		foreach ($aspect_codes as $code)
 		{
 			$report=$this->entity->get_aspect($code, $now);
-			if ($report instanceof Report_impossible) return $report;
-			if ($report instanceof Report_tasks) $tasks=array_merge($tasks, $report->tasks);	// этот ответ возможен только при $now==false.
+			if ($report instanceof \Report_impossible) return $report;
+			if ($report instanceof \Report_tasks) $tasks=array_merge($tasks, $report->tasks);	// этот ответ возможен только при $now==false.
 			$this->aspects[$code]=$report; // если не эти два отчёта, то аспект.
 		}
 		 
 		if (empty($tasks)) return true;
-		return $this->sign_report(new Report_tasks($tasks));
+		return new \Report_tasks($tasks, $this);
 	}
 }
 
@@ -951,12 +945,12 @@ class Task_calc_aspect_right extends Task_for_entity
 	public function resolve()
 	{
 		$result=$this->aspect->has_right(...$this->args);
-		if ($result instanceof Report_impossible)
+		if ($result instanceof \Report_impossible)
 		{
 			$this->impossible($result->errors);
 			return;
 		}
-		if ($result instanceof Report) die('BAD RIGHT REPORT');
+		if ($result instanceof \Report) die('BAD RIGHT REPORT');
 		$this->finish_with_resolution($result);
 	}
 }

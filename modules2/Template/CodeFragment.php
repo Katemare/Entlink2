@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Template;
 
 abstract class CodeFragment extends Task
 {
@@ -62,13 +63,13 @@ class CodeFragment_expression extends CodeFragment
 			$tasks=[];
 			foreach ($this->args['precalc'] as $key=>$precalc)
 			{
-				if ($precalc instanceof Compacter)
+				if ($precalc instanceof \Pokeliga\Data\Compacter)
 				{
 					$precalc=$precalc->extract_for($this->host);
 				}
-				if ($precalc instanceof Task)
+				if ($precalc instanceof \Pokeliga\Task\Task)
 				{
-					if ($precalc->failed()) return $this->sign_report(new Report_impossible('bad_precalc'));
+					if ($precalc->failed()) return $this->sign_report(new \Report_impossible('bad_precalc'));
 					elseif ($precalc->successful()) $this->args['precalc'][$key]=$precalc->resolution;
 					else
 					{
@@ -79,26 +80,24 @@ class CodeFragment_expression extends CodeFragment
 				}
 				else $this->args['precalc'][$key]=$precalc;
 			}
-			if (!empty($tasks)) return $this->sign_report(new Report_tasks($tasks));
+			if (!empty($tasks)) return $this->sign_report(new \Report_tasks($tasks));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_SOLVE)
 		{
 			if (!empty($this->args['precalc'])) $_PRECALC=$this->args['precalc'];
 			$result=eval('return '.$this->args['expression'].';');
-			return $this->sign_report(new Report_resolution($result));
+			return $this->sign_report(new \Report_resolution($result));
 		}
 	}
 	
-	public function dependancy_resolved($task, $identifier=null)
+	public function completed_dependancy($task, $identifier=null)
 	{
 		if ( ($task->failed()) && ($this->step===static::STEP_PRECALC) ) // FIX: есть опасность при использовании внешних зависимостей.
 		{
 			$this->impossible('bad_precalc');
 			return;
 		}
-		
-		parent::dependancy_resolved($task, $identifier);
 	}
 }
 
@@ -122,7 +121,7 @@ abstract class CodeFragment_command extends CodeFragment
 		elseif ($this->step===static::STEP_PREPARE) return $this->prepare();
 		elseif ($this->step===static::STEP_WAIT)
 		{
-			if ( ($this->previous instanceof Task) && (!$this->previous->completed()) ) return $this->sign_report(new Report_task($this->previous));
+			if ( ($this->previous instanceof \Pokeliga\Task\Task) && (!$this->previous->completed()) ) return $this->sign_report(new \Report_task($this->previous));
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_EXECUTE) return $this->execute();
@@ -143,7 +142,7 @@ abstract class CodeFragment_command extends CodeFragment
 
 	public function analyze_finish()
 	{
-		return $this->sign_report(new Report_resolution($this->resolution)); // для тех, кто в качестве выполнения зарегистрировал зависимости.	
+		return $this->sign_report(new \Report_resolution($this->resolution)); // для тех, кто в качестве выполнения зарегистрировал зависимости.	
 	}
 	
 	public function finish($success=true)
@@ -181,13 +180,13 @@ class CodeFragment_sequence extends CodeFragment_command
 	
 	public function execute()
 	{
-		return $this->sign_report(new Report_tasks($this->commands));
+		return $this->sign_report(new \Report_tasks($this->commands));
 	}
 	
 	public function analyze_finish()
 	{
 		$resolution=implode($this->buffer);
-		return $this->sign_report(new Report_resolution($resolution));
+		return $this->sign_report(new \Report_resolution($resolution));
 	}
 }
 
@@ -196,16 +195,16 @@ class CodeFragment_echo extends CodeFragment_command
 	public function prepare()
 	{
 		$content=&$this->args['content'];
-		if ($content instanceof Compacter) $content=$content->extract_for($this->host);
-		if ($content instanceof Task) return $this->sign_report(new Report_task($content));
+		if ($content instanceof \Pokeliga\Data\Compacter) $content=$content->extract_for($this->host);
+		if ($content instanceof \Pokeliga\Task\Task) return $this->sign_report(new \Report_task($content));
 		return $this->advance_step();
 	}
 	
 	public function execute()
 	{
 		$content=$this->args['content'];
-		if ($content instanceof Task) return $content->report();
-		return $this->sign_report(new Report_resolution($content));
+		if ($content instanceof \Pokeliga\Task\Task) return $content->report();
+		return $this->sign_report(new \Report_resolution($content));
 	}
 }
 
@@ -218,7 +217,7 @@ class CodeFragment_if extends CodeFragment_command
 	{
 		$condition=&$this->args['condition'];
 		if ($condition instanceof Compacter) $condition=$condition->extract_for($this->host);
-		if ($condition instanceof Task) return $this->sign_report(new Report_task($condition));
+		if ($condition instanceof Task) return $this->sign_report(new \Report_task($condition));
 		return $this->advance_step();
 	}
 	
@@ -228,17 +227,17 @@ class CodeFragment_if extends CodeFragment_command
 		if ($condition instanceof Task)
 		{
 			$report=$condition->report();
-			if ($report instanceof Report_impossible) $condition=false;
+			if ($report instanceof \Report_impossible) $condition=false;
 			else $condition=$condition->resolution;
 		}
-		if (!$condition) return $this->sign_report(new Report_success());
+		if (!$condition) return $this->sign_report(new \Report_success());
 		
 		$on_true=$this->args['on_true'];
-		if ($on_true instanceof Compacter) $on_true=$on_true->extract_for($this->host);
-		if (!($on_true instanceof Task)) die ('BAD IF BRANCH');
+		if ($on_true instanceof \Pokeliga\Data\Compacter) $on_true=$on_true->extract_for($this->host);
+		if (!($on_true instanceof \Pokeliga\Task\Task)) die ('BAD IF BRANCH');
 		$on_true->resolution=&$this->resolution;
 		$this->branched=true;
-		return $this->sign_report(new Report_task($on_true));
+		return $this->sign_report(new \Report_task($on_true));
 	}
 }
 
@@ -253,13 +252,13 @@ class CodeFragment_elseif extends CodeFragment_if
 
 	public function prepare()
 	{
-		if ($this->branched) return $this->sign_report(new Report_success()); // если уже известно, что сработала предыдущая ветвь.
+		if ($this->branched) return $this->sign_report(new \Report_success()); // если уже известно, что сработала предыдущая ветвь.
 		return parent::prepare();
 	}
 	
 	public function execute()
 	{
-		if ($this->branched) return $this->sign_report(new Report_success());
+		if ($this->branched) return $this->sign_report(new \Report_success());
 		return parent::execute();
 	}
 }
@@ -278,20 +277,20 @@ class CodeFragment_else extends CodeFragment_command
 
 	public function prepare()
 	{
-		if ($this->branched) return $this->sign_report(new Report_success()); // если уже известно, что сработала предыдущая ветвь.
+		if ($this->branched) return $this->sign_report(new \Report_success()); // если уже известно, что сработала предыдущая ветвь.
 		return parent::prepare();
 	}
 	
 	public function execute()
 	{
-		if ($this->branched) return $this->sign_report(new Report_success());
+		if ($this->branched) return $this->sign_report(new \Report_success());
 		
 		$commands=$this->args['commands'];
-		if ($commands instanceof Compacter) $commands=$commands->extract_for($this->host);
-		if (!($commands instanceof Task)) die ('BAD IF BRANCH');
+		if ($commands instanceof \Pokeliga\Data\Compacter) $commands=$commands->extract_for($this->host);
+		if (!($commands instanceof \Pokeliga\Task\Task)) die ('BAD IF BRANCH');
 		$this->branched=true;
 		$commands->resolution=&$this->resolution;
-		return $this->sign_report(new Report_task($commands));
+		return $this->sign_report(new \Report_task($commands));
 	}
 }
 ?>

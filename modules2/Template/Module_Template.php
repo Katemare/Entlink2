@@ -1,7 +1,9 @@
 <?
-class Module_Template extends Module
+namespace Pokeliga\Template;
+
+class Module_Template extends \Pokeliga\Entlink\Module
 {
-	use Module_autoload_by_beginning;
+	use \Pokeliga\Entlink\Module_autoload_by_beginning;
 	static $instance=null;
 	
 	public
@@ -27,7 +29,7 @@ class Module_Template extends Module
 			'Task_save_cache'=>'Cache',
 			'Task_reset_cache'=>'Cache',
 		],
-		$classex='/^(?<file>Template|CodeFragment)[_$]/';
+		$classex='(?<file>Template|CodeFragment)[_$]';
 		
 	static
 		$conditionex='/{{#if:(?<condition>\s*(?<param>[a-z_\.])\s*(?<operation>(?<op>=|>|<|>=|<=|!=)\s*(?<value>.+?)\s*)?)\|(?<on_true>.+?)(\|(?<on_false>.+?))?}}/', // примитивное условие, не поддерживающее командной строки у шаблонов в on_true и on_false

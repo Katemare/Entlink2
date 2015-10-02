@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\User;
 
 // для наследования.
 abstract class Trophy_owner extends Aspect
@@ -44,7 +45,7 @@ abstract class Task_trophy_analyst extends Task_for_entity
 	public
 		$pre_request=['trophies'],
 		$additional_pre_request=[],
-		$pre_request_from_trophies=['blueprint_entity', 'level'],
+		$pre_request_from_trophies=['blueprint', 'level'],
 		$trophies;
 	
 	public function run_step()
@@ -53,12 +54,12 @@ abstract class Task_trophy_analyst extends Task_for_entity
 		{
 			$tasks=[];
 			$tasks[]=$this->pre_request(array_merge($this->pre_request, $this->additional_pre_request));
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_SECONDARY_REQUEST)
 		{
 			$trophies=$this->entity->value('trophies');
-			if ($trophies instanceof Report) return $trophies;
+			if ($trophies instanceof \Report) return $trophies;
 			$this->trophies=$trophies->values;
 			$tasks=[];
 			foreach ($this->trophies as $trophy)
@@ -66,11 +67,11 @@ abstract class Task_trophy_analyst extends Task_for_entity
 				$tasks[]=$this->pre_request($this->pre_request_from_trophies, $trophy);
 			}
 			if (empty($tasks)) return $this->advance_step();
-			return $this->sign_report(new Report_tasks($tasks));
+			return $this->sign_report(new \Report_tasks($tasks));
 		}
 		elseif ($this->step===static::STEP_ANALYZE_TROPHIES)
 		{
-			return $this->sign_report(new Report_impossible('no_analys_body'));
+			return $this->sign_report(new \Report_impossible('no_analys_body'));
 		}
 	}
 }
@@ -95,13 +96,13 @@ class Task_trophy_owner_satisfies extends Task_trophy_analyst
 			$resolution=false;
 			foreach ($this->trophies as $trophy)
 			{
-				if ($this->blueprint->equals($trophy->value('blueprint_entity')))
+				if ($this->blueprint->equals($trophy->value('blueprint')))
 				{
 					$resolution=$trophy->value('level')>=$this->level;
 					break;
 				}
 			}
-			return $this->sign_report(new Report_resolution($resolution));
+			return $this->sign_report(new \Report_resolution($resolution));
 		}
 		else return parent::run_step();
 	}
@@ -117,21 +118,21 @@ class Task_trophy_owner_benefits_from extends Task_trophy_owner_satisfies
 		if ($this->step===static::STEP_PRE_REQUEST)
 		{
 			$report=parent::run_step();
-			if ($report instanceof Report_tasks)
+			if ($report instanceof \Report_tasks)
 			{
 				$tasks=$report->tasks;
 				$tasks[]=$this->pre_request($this->pre_request_from_blueprint, $this->blueprint);
-				return $this->sign_report(new Report_tasks($tasks));
+				return $this->sign_report(new \Report_tasks($tasks));
 			}
 			return $report;
 		}
 		elseif ($this->step===static::STEP_ANALYZE_TROPHIES)
 		{
 			$type=$this->blueprint->value('trophy_type');
-			if ($type===TrophyBlueprint::TYPE_CUMULATIVE) return $this->sign_report(new Report_resolution(true));
+			if ($type===TrophyBlueprint::TYPE_CUMULATIVE) return $this->sign_report(new \Report_resolution(true));
 			
 			$report=parent::run_step();
-			if ($report instanceof Report_resolution) $report->resolution=!$report->resolution;
+			if ($report instanceof \Report_resolution) $report->resolution=!$report->resolution;
 			return $report;
 		}
 		else return parent::run_step();
@@ -165,7 +166,7 @@ class Task_trophy_owner_receive extends Task_trophy_owner_benefits_from
 		{
 			foreach ($this->trophies as $trophy)
 			{
-				if ($this->blueprint->equals($trophy->value('blueprint_entity')))
+				if ($this->blueprint->equals($trophy->value('blueprint')))
 				{
 					$this->base_trophy=$trophy;
 					return $this->advance_step(static::STEP_MODIFY_TROPHY);
@@ -182,21 +183,21 @@ class Task_trophy_owner_receive extends Task_trophy_owner_benefits_from
 		{
 			// STUB: это каким-то образом должен делать сам чертёж трофея.
 			$type=$this->blueprint->value('trophy_type');
-			if ($type===TrophyBlueprint::TYPE_SINGLE) return $this->sign_report(new Report_success());
+			if ($type===TrophyBlueprint::TYPE_SINGLE) return $this->sign_report(new \Report_success());
 			elseif ($type===TrophyBlueprint::TYPE_CUMULATIVE)
 				$this->base_trophy->set('level', $this->base_trophy->value('level')+$this->level);
 			elseif ($type===TrophyBlueprint::TYPE_RATING)
 			{
-				if ($this->base_trophy->value('level')>=$this->level) return $this->sign_report(new Report_success());
+				if ($this->base_trophy->value('level')>=$this->level) return $this->sign_report(new \Report_success());
 				$this->base_trophy->set('level', $this->level);
 				$this->sign_trophy($this->base_trophy);
 			}
-			else return $this->sign_report(new Report_impossible('bad_trophy_type'));
+			else return $this->sign_report(new \Report_impossible('bad_trophy_type'));
 			return $this->base_trophy->save();
 		}
 		elseif (in_array([static::STEP_FINISH, static::STEP_FINISH2], $this->step))
 		{
-			return $this->sign_report(new Report_success());
+			return $this->sign_report(new \Report_success());
 		}
 		else return parent::run_step();
 	}

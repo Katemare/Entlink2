@@ -1,10 +1,10 @@
 <?
+namespace Pokeliga\Retriever;
+
 // ВАЖНО! запросы, работающие с Singleton и Multiton, добавляют фабрику instance(), а одноразовые запросы используют собственные фабрики.
 
-class RequestTicket implements Multiton_argument
+class RequestTicket implements \Pokeliga\Entlink\Multiton_argument
 {
-	use Report_spawner;
-	
 	const
 		SPAWN_NEW=0,
 		SPAWN_INSTANCE=1;
@@ -41,7 +41,7 @@ class RequestTicket implements Multiton_argument
 		$class=$this->class;
 		$instance=$class::instance(...$this->constructor_args);
 		// если запрос относится к Noton'ам, то будет создана новая копия в любом случае. Это также касается некоторых классов-мультитонов, например, некоторых Request_reuser'ов.
-		if ($instance instanceof Report) return $instance;
+		if ($instance instanceof \Report) return $instance;
 		
 		$this->request=$instance;
 		$this->spawn_method=static::SPAWN_INSTANCE;
@@ -195,7 +195,7 @@ abstract class RequestTicket_special extends RequestTicket
 			$uncompleted_keys=$this->set_data();
 			if ($uncompleted_keys)
 			{
-				if ($mode===Request::GET_DATA_SET) return $this->sign_report(new Report_task($this->request));
+				if ($mode===Request::GET_DATA_SET) return $this->sign_report(new \Report_task($this->request));
 				$this->request->complete();
 			}
 		}
@@ -214,14 +214,14 @@ abstract class RequestTicket_special extends RequestTicket
 	}
 }
 
-abstract class Request extends Task
+abstract class Request extends \Pokeliga\Task\Task
 {
-	use Noton;
+	use \Pokeliga\Entlink\Noton;
 
 	const
 		GET_DATA_NOW=1,	 // если нужные данные отсутствуют в результатах, сразу получить их и вернуть.
-		GET_DATA_SET=2,  // если нужные данные отсутствуют в результатах, отдать Report_impossible.
-		GET_DATA_SOFT=3; // если нужные данные отсутствуют в результатах, то настроить запрос на их получение и вернуть Report_task.
+		GET_DATA_SET=2,  // если нужные данные отсутствуют в результатах, отдать \Report_impossible.
+		GET_DATA_SOFT=3; // если нужные данные отсутствуют в результатах, то настроить запрос на их получение и вернуть \Report_task.
 	
 	static
 		$get_data_analysis=[]; // для использования чертой Request_get_data_has_args
@@ -231,7 +231,7 @@ abstract class Request extends Task
 	public function progress()
 	{
 		$result=$this->is_ready();
-		if ($result instanceof Report_impossible) return $this->impossible($result->errors);
+		if ($result instanceof \Report_impossible) return $this->impossible($result->errors);
 		else if ($result!==true) return $this->impossible('unknown_error');
 		
 		$query=$this->make_query();
@@ -249,7 +249,7 @@ abstract class Request extends Task
 	
 	public function process_result($result)
 	{
-		return !($result instanceof Report_impossible);
+		return !($result instanceof \Report_impossible);
 	}
 	
 	// главная цель этого метода - записать, что текущие ключи были выполнены (и, возможно, зафиксировать, что они не были найдены). чтобы в следующий раз set_data() точно знал, повторять ли запрос.
@@ -271,7 +271,7 @@ abstract class Request extends Task
 	// добавляет ключи. возвращает true если добавлены новые ключи, false если нет.
 	public function set_data() { die('INHERIT GET DATA TRAIT'); }
 	
-	// запрашивает данные с указанным режимом  (MODE_NOW, MODE_SET или MODE_SOFT). NOW сразу выполняет запрос и возвращает результат либо невозможность. SET при необходимости добавляет ключи и возвращает Report_tasks. SOFT либо возвращает результат, либо невозможность, не добавляя ключей. режим должен быть последним аргументом, по умолчанию NOW.
+	// запрашивает данные с указанным режимом  (MODE_NOW, MODE_SET или MODE_SOFT). NOW сразу выполняет запрос и возвращает результат либо невозможность. SET при необходимости добавляет ключи и возвращает \Report_tasks. SOFT либо возвращает результат, либо невозможность, не добавляя ключей. режим должен быть последним аргументом, по умолчанию NOW.
 	public function get_data()      { die('INHERIT GET DATA TRAIT'); }
 	public function get_data_set()  { die('INHERIT GET DATA TRAIT'); }	// обращение к get_data с указанным режимом SET.
 	public function get_data_soft() { die('INHERIT GET DATA TRAIT'); } 	// обращение к get_data с указанным режимом SOFT. по сути обращение к следующему методу.
@@ -288,14 +288,14 @@ trait Request_get_data_no_args
 	public function get_data($mode=Request::GET_DATA_NOW)
 	{
 		$uncompleted=$this->set_data();
-		if ($uncompleted instanceof Report_impossible) return $uncompleted;
+		if ($uncompleted instanceof \Report_impossible) return $uncompleted;
 		if ($uncompleted)
 		{
-			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new Report_task($this));
+			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new \Report_task($this));
 			if ($mode===Request::GET_DATA_SOFT) return $this->sign_report(new Request_impossible('uncompleted'));
 			$this->complete();
 		}
-		if ($this->failed()) return $this->sign_report(new Report_impossible('bad_request'));
+		if ($this->failed()) return $this->sign_report(new \Report_impossible('bad_request'));
 		
 		return $this->compose_data();
 	}
@@ -312,7 +312,7 @@ trait Request_get_data_no_args
 	
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible) return false;
+		if ($result instanceof \Report_impossible) return false;
 		$this->result=$result;
 		return true;
 	}
@@ -335,15 +335,15 @@ trait Request_get_data_one_arg
 	public function get_data($arg=null, $mode=Request::GET_DATA_NOW)
 	{
 		$uncompleted_keys=$this->set_data($arg);
-		if ($uncompleted_keys instanceof Report_impossible) return $uncompleted_keys;
+		if ($uncompleted_keys instanceof \Report_impossible) return $uncompleted_keys;
 		if ($uncompleted_keys)
 		{
 			if ($this->completed()) $this->reset();
-			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new Report_task($this));
-			if ($mode===Request::GET_DATA_SOFT) return $this->sign_report(new Report_impossible('uncompleted'));
+			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new \Report_task($this));
+			if ($mode===Request::GET_DATA_SOFT) return $this->sign_report(new \Report_impossible('uncompleted'));
 			$this->complete();
 		}
-		if ($this->failed()) return $this->sign_report(new Report_impossible('bad_request'));
+		if ($this->failed()) return $this->sign_report(new \Report_impossible('bad_request'));
 		
 		return $this->compose_data($arg);
 	}
@@ -369,15 +369,15 @@ trait Request_get_data_two_args
 	public function get_data($arg1=null, $arg2=null, $mode=Request::GET_DATA_NOW)
 	{
 		$uncompleted_keys=$this->set_data($arg1, $arg2);
-		if ($uncompleted_keys instanceof Report_impossible) return $uncompleted_keys;
+		if ($uncompleted_keys instanceof \Report_impossible) return $uncompleted_keys;
 		if ($uncompleted_keys)
 		{
 			if ($this->completed()) $this->reset();
-			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new Report_task($this));
+			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new \Report_task($this));
 			if ($mode===Request::GET_DATA_SOFT) return $this->sign_report(new Request_impossible('uncompleted'));
 			$this->complete();
 		}
-		if ($this->failed()) return $this->sign_report(new Report_impossible('bad_request'));
+		if ($this->failed()) return $this->sign_report(new \Report_impossible('bad_request'));
 		
 		return $this->compose_data($arg1, $arg2);
 	}
@@ -409,15 +409,15 @@ trait Request_get_data_variable_args
 		if (array_key_exists($keys, $args)) $mode=$args[$keys]; else $mode=static::GET_DATA_NOW;
 		
 		$uncompleted_keys=$this->set_data(...$set_args);
-		if ($uncompleted_keys instanceof Report_impossible) return $uncompleted_keys;
+		if ($uncompleted_keys instanceof \Report_impossible) return $uncompleted_keys;
 		if ($uncompleted_keys)
 		{
 			if ($this->completed()) $this->reset();
-			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new Report_task($this));
+			if ($mode===Request::GET_DATA_SET) return $this->sign_report(new \Report_task($this));
 			if ($mode===Request::GET_DATA_SOFT) return $this->sign_report(new Request_impossible('uncompleted'));
 			$this->complete();
 		}
-		if ($this->failed()) return $this->sign_report(new Report_impossible('bad_request'));
+		if ($this->failed()) return $this->sign_report(new \Report_impossible('bad_request'));
 		
 		return $this->compose_data(...$set_args );
 	}
@@ -506,7 +506,7 @@ class Request_delete extends Request_single
 // запрашивает все данные из таблицы.
 class Request_all extends Request
 {
-	use Multiton, Request_get_data_no_args
+	use \Pokeliga\Entlink\Multiton, Request_get_data_no_args
 	{
 		Request_get_data_no_args::compose_data as std_compose_data;
 	}
@@ -532,7 +532,7 @@ class Request_all extends Request
 	
 	public function compose_data()
 	{
-		return Retriever()->data_by_table($this->table); // вернёт Report_impossible, если таблица не была найдена.
+		return Retriever()->data_by_table($this->table); // вернёт \Report_impossible, если таблица не была найдена.
 	}
 }
 
@@ -550,10 +550,10 @@ interface Request_groupable
 
 class Request_by_field extends Request implements Request_groupable
 {
-	use Request_get_data_one_arg, Multiton
+	use Request_get_data_one_arg, \Pokeliga\Entlink\Multiton
 	{
-		Multiton::make_Multiton_class_name as std_make_Multiton_class_name;
-		Multiton::make_Multiton_key as std_make_Multiton_key;
+		\Pokeliga\Entlink\Multiton::make_Multiton_class_name as std_make_Multiton_class_name;
+		\Pokeliga\Entlink\Multiton::make_Multiton_key as std_make_Multiton_key;
 	}
 	
 	public 
@@ -566,7 +566,7 @@ class Request_by_field extends Request implements Request_groupable
 	// для краткости в случае, если данные по запрошенным ключам уже получены.
 	public function already_done_report()
 	{
-		return $this->sign_report(new Report_success());
+		return $this->sign_report(new \Report_success());
 	}
 	
 	public function add_keys($keys)
@@ -591,6 +591,7 @@ class Request_by_field extends Request implements Request_groupable
 	public function filter_done($ids)
 	{
 		$this->prepare_keys($ids);
+
 		return array_diff($ids, array_keys($this->data));
 	}
 	
@@ -648,7 +649,7 @@ class Request_by_field extends Request implements Request_groupable
 	
 	public function process_result($result)
 	{
-		if ($result instanceof Report_impossible)
+		if ($result instanceof \Report_impossible)
 		{
 			$this->data=false;
 			return false;
@@ -687,8 +688,8 @@ class Request_by_field extends Request implements Request_groupable
 	
 	public function set_data($value=null)
 	{
-		if ($this->data===false) return $this->sign_report(new Report_impossible('no_table'));
-		if ($value instanceof Report_impossible) return $this->sign_report(new Report_impossible('bad_key'));
+		if ($this->data===false) return $this->sign_report(new \Report_impossible('no_table'));
+		if ($value instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('bad_key'));
 		if (is_array($value))
 		{
 			$missing=$this->filter_done($value);
@@ -709,7 +710,7 @@ class Request_by_field extends Request implements Request_groupable
 	{
 		if (is_array($value))
 		{
-			if ($this->data===false) return array_fill_keys($value, $this->sign_report(new Report_impossible('no_table')));
+			if ($this->data===false) return array_fill_keys($value, $this->sign_report(new \Report_impossible('no_table')));
 			$result=[];
 			foreach ($value as $val)
 			{
@@ -720,9 +721,9 @@ class Request_by_field extends Request implements Request_groupable
 		else
 		{
 			$this->prepare_key($value);
-			if ($this->data===false) return $this->sign_report(new Report_impossible('no_table'));
-			if (!array_key_exists($value, $this->data)) return $this->sign_report(new Report_impossible('not_found'));
-			if ($this->data[$value]===false) return $this->sign_report(new Report_impossible('not_found'));
+			if ($this->data===false) return $this->sign_report(new \Report_impossible('no_table'));
+			if (!array_key_exists($value, $this->data)) return $this->sign_report(new \Report_impossible('not_found'));
+			if ($this->data[$value]===false) return $this->sign_report(new \Report_impossible('not_found'));
 			return $this->data[$value];
 		}
 	}
@@ -755,7 +756,7 @@ class Request_by_field extends Request implements Request_groupable
 			{
 				if ( (mb_strtolower($key)===$lower)&&(is_array($row)) ) $result=$row;
 			}
-			if (!is_array($result)) return $this->sign_report(new Report_impossible('not_found'));
+			if (!is_array($result)) return $this->sign_report(new \Report_impossible('not_found'));
 			return $result;
 		}
 	}
@@ -815,7 +816,7 @@ class Request_by_id extends Request_by_unique_field
 		parent::__construct($table, 'id');
 		$retriever=Retriever();
 		$data=$retriever->data_by_table($table);
-		if (!($data instanceof Report_impossible)) $this->data=$data;
+		if (!($data instanceof \Report_impossible)) $this->data=$data;
 		
 		// благодаря этому данный запрос будет получать данные по айди даже в случае, если они были получены другим запросом.
 		
@@ -893,7 +894,7 @@ class Request_by_id_and_group_multiple extends Request_by_field
 	public function data_hook_call() { } // не требуется.
 }
 
-class_alias('Request_by_field', 'Request_links'); // реализация запросов к таблицам вроде "эволюция покемонов" никак не отличается от обычного запроса к таблице по значениям полей.
+class_alias('\Pokeliga\Retriever\Request_by_field', '\Pokeliga\Retriever\Request_links'); // реализация запросов к таблицам вроде "эволюция покемонов" никак не отличается от обычного запроса к таблице по значениям полей.
 
 class Request_by_field_spectrum extends Request_by_field
 {
@@ -963,12 +964,12 @@ trait Task_processes_request
 	public function progress()
 	{	
 		$data=$this->get_data_set();
-		if ($data instanceof Report_impossible)
+		if ($data instanceof \Report_impossible)
 		{
 			if (reset($data->errors)==='not_found') $data=[]; // FIX! здесь не должно быть строкового сравнения.
 			else return $this->impossible('no_data');
 		}
-		if ($data instanceof Report_tasks) return $data->register_dependancies_for($this);
+		if ($data instanceof \Report_tasks) return $data->register_dependancies_for($this);
 		
 		$this->apply_data($data);
 		$this->finalize();
