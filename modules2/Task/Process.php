@@ -197,7 +197,7 @@ abstract class Process extends Task
 			}
 			elseif ( ($report=$task->report()) instanceof \Report_dependant)
 			{
-				$this->add_task_dependancies($report->tasks, $task);
+				$this->add_task_dependancies($report->get_deps(), $task);
 				$this->delay_subtask($task);
 			}
 			else { vdump($report); vdump($task); die('BAD TASK REPORT'); }

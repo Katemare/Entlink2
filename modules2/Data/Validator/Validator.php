@@ -66,9 +66,9 @@ abstract class Validator_by_task extends Validator
 	
 	public function progress()
 	{
-		if ($this->task instanceof \Report_final) $this->finish_by_report($this->task);
+		if ($this->task instanceof \Report_final) $this->finish($this->task);
 		elseif (!$this->task->completed()) $this->register_dependancy($this->task);
-		else $this->finish_by_task($task);
+		else $this->finish($task);
 	}
 }
 
@@ -82,7 +82,7 @@ class Validator_delay extends Validator
 	{
 		if ($this->subvalidator!==null)
 		{
-			$this->finish_by_task($this->subvalidator);
+			$this->finish($this->subvalidator);
 			return;
 		}
 		

@@ -50,7 +50,7 @@ abstract class ValueType implements ValueModel, ValueLink, \Pokeliga\Template\Te
 		return $content;
 	}
 	
-	public static function type_conversion($conent) { return $content; } // это приведение, не зависящее от модели и настроек объекта.
+	public static function type_conversion($content) { return $content; } // это приведение, не зависящее от модели и настроек объекта.
 	// хотя этот метод статичный, не следует использовать его в отрыве от объекта. некоторые типы (ValueTypes) сформированы на основе настроек родительских типов, выраженных в виде параметров объекта (на случай, если перенастройка понадобится в ходе выполнения кода).
 	public function settings_based_conversion($content) { return $content; } // это приведение, учитывающее модель и настройки объекта.
 	

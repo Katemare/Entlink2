@@ -247,7 +247,7 @@ class Template_from_text extends Template implements Templater, \Pokeliga\Data\V
 	*/
 }
 
-class Task_resolve_template_track extends \Pokeliga\Data\Task_resolve_track
+class Track_template extends \Pokeliga\Data\Tracker
 {
 	public
 		$line=[];
@@ -258,9 +258,9 @@ class Task_resolve_template_track extends \Pokeliga\Data\Task_resolve_track
 		parent::__construct($track, $origin);
 	}
 	
-	public function good_endpoint()
+	public function good_endpoint($location)
 	{
-		return duck_instanceof($this->location, '\Pokeliga\Template\Templater');
+		return duck_instanceof($location, '\Pokeliga\Template\Templater');
 	}
 	
 	public function ask_endpoint($track, $track_line, $location)
@@ -277,6 +277,92 @@ class Task_resolve_template_track extends \Pokeliga\Data\Task_resolve_track
 	{
 		if ($success!==true) $this->resolution='MISSING TEMPLATE: '.$this->human_readable_track(); // FIXME! чтобы что-то поместить в текст в качестве дебага... а вообще-то проваленные задачи не должны иметь разрешения.
 		parent::finish_by_bool(true);
+	}
+}
+
+/*
+												bakes to:		keys and subgroups					special expiry		reset req?
+@meow											'meow'			-									-					-
+@user.login										'EvilCat'		Player4: basic, User99: basic		-					-
+@pokemon[id=5].nickname							'007'			Pokemon5: basic						-					y
+@pokemon[provide=random].owner.is_activated		-
+@pokemon[id:=@page.poke_id].owner.login			-
+@pokemon[id:=@daily_poke_id].genes.serialized	'[i:2;i:3]'		Pokemon99: breedable				cron_daily			?
+@pokemon[provide=starter; owner:=@spotlight_user.player].is_egg
+												false			User99: adopts;						cron_daily			y
+
+if (@meow) echo 'woof';							'woof'			-									-					-
+if (@meow) @pokemon[id=5].nickname;				'007'			Player5: basic, User99: basic		-					-
+
+if (@is_egg) @pokemon[id=5].nickname;			''				Pokemon99: basic					-					y
+
+if (!@is_egg) @pokemon[id=5].nickname;			'007'			Pokemon99: basic, Pokemon5: basic	-					y
+
+if (@is_egg) @pokemon[id=5].nickname;			'not an egg'	Pokemon99: basic					-					y
+else echo 'not an egg';
+
+if (@is_egg) @pokemon[id=5].nickname;			if (@d6==6) 'you won!';		Pokemon99: basic		-					y
+elseif (@d6==6) 'you won!';						else echo 'not an egg';
+else echo 'not an egg';
+
+if (@d6==6) 'you won!';							-				Нельзя предположить о дальнейшем условии, поскоьку сама действительность
+elseif (@is_egg) @pokemon[id=5].nickname;						дальнейшей логики может зависеть от проверки выше (например, залогинен ли пользователь).
+else echo 'not an egg';
+
+@meow.@woof										'meowwoof'		-
+@two+@two										4
+'Dear '.@user.login								'Dear EvilCat'	Player4: basic, User99: basic
+@pokemon[provide=random].owner.login.' is cool'	-
+@pokemon[provide=random].owner.login.@meow		@pokemon[provide=random].owner.login.'meow'	-
+@pokemon[provide=random].nickname.' may be a '.@species[id=1].title
+												@pokemon[provide=random].nickname.' may be a Bulbasaur'
+																Species1: contribution				-					-
+*/
+
+// WIP!!!
+abstract class ValueElement extends \Pokeliga\Data\Track_value implements TemplateElement
+{
+	protected
+		$stable_ref,
+		$stable=null;
+		
+	public function __construct($track, $origin)
+	{
+		parent::__construct($track, $origin);
+		if ($this->possible_stability($origin)) $this->stable_ref=$origin->get_context();
+		else $this->stable=false;
+	}
+	
+	public function possible_stability($origin)
+	{
+		return ($context=$origin->get_context()) instanceof StableKey and $context->get_stability_key()!==false;
+	}
+
+	public function precompile()
+	{
+		return '$this->value_element('.var_export($this>track, true).');';
+	}
+	
+	protected function advance_track($location, $point)
+	{
+		if ($this->iteration===0)
+		{
+			if ($point!==static::LOC_CONTEXT) $this->bakeable=false;
+			elseif (!($location instanceof BakeKey)) $this->bakeable=false;
+			elseif (empty($location->get_base_key())) $this->bakeable=false;
+		}
+		parent::advance_track($location);
+	}
+	
+	protected function estimate_stable_path($location)
+	{
+	}
+	
+	public function is_stable(&$group=null)
+	{
+		if (!$this->completed()) throw new \Exception('premature stability request');
+		if ($this->failed()) return false;
+		return $this->stable;
 	}
 }
 

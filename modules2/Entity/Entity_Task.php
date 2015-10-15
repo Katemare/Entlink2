@@ -15,7 +15,7 @@ trait Task_for_entity_methods
 			if ($result instanceof \Report_impossible) return $result;
 			if ($result instanceof \Report_tasks) $tasks=array_merge($tasks, $result->tasks);
 		}
-		if (empty($tasks)) return new \Report_success(, $this);
+		if (empty($tasks)) return new \Report_success($this);
 		return new \Report_tasks($tasks, $this);
 	}
 	
@@ -105,7 +105,7 @@ class Task_save_entity extends Task_for_entity
 				if (empty($keeper)) continue;
 				$this->keepers[]=$keeper;
 			}
-			if (empty($this->keepers)) return new \Report_success(, $this);
+			if (empty($this->keepers)) return new \Report_success($this);
 			return $this->advance_step();
 		}
 		elseif ($this->step===static::STEP_FILL)
@@ -188,7 +188,7 @@ class Task_save_entity extends Task_for_entity
 			{
 				$value->save_changes=false;
 			}
-			return new \Report_success(, $this);
+			return new \Report_success($this);
 		}
 	}
 	
@@ -502,7 +502,7 @@ class Task_resolve_entity_call extends Task_for_entity implements \Pokeliga\Task
 	
 	public function resolve()
 	{
-		return new \Report_task($this, $this);
+		return $this->report_promise();
 	}
 	
 	public function record_analysis($analysis)
@@ -610,7 +610,7 @@ class Task_for_entity_verify_id extends Task_for_entity
 	public function progress()
 	{
 		$this->prepare();
-		$data=\Pokeliga\Retriever\Request_by_id::instance($this->table)->get_data_set($this->id);
+		$data=\Pokeliga\Retriever\Request_by_id::instance($this->table)->get_data_or_promise($this->id);
 		if ($data instanceof \Report_impossible)
 		{
 			$this->entity->state=Entity::STATE_FAILED;
@@ -628,7 +628,7 @@ class Task_for_entity_verify_id extends Task_for_entity
 // в результате завершения этой задачи поля сущности должны быть заполнены. Хотя бы одна ошибка означает ошибку задачи.
 class Task_entity_value_request extends Task_for_entity
 {
-	use \Pokeliga\Task\Task_inherit_dependancies_success, \Pokeliga\Task\Task_inherit_dependancy_failure;
+	use \Pokeliga\Task\Task_inherit_dependancy_failure;
 	
 	public
 		$to_request=[];
@@ -646,6 +646,11 @@ class Task_entity_value_request extends Task_for_entity
 		if (empty($this->entity))
 		{
 			$this->impossible('no_entity');
+			return;
+		}
+		if ($this->to_request===null)
+		{
+			$this->finish();
 			return;
 		}
 		foreach ($this->to_request as $code)

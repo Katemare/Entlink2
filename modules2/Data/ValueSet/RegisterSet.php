@@ -88,14 +88,14 @@ trait Value_registers
 	{
 		if (!$this->has_state(Value::STATE_FILLED)) die('Unimplemented yet: SETTING REGISTER TO UNFILLED');
 		$result=$this->compose_change_by_reg($register, $content);
-		if ($result instanceof \Report_impossible) $this->set_failed($source);
+		if ($result instanceof \Report_impossible) $this->set_failed($result, $source);
 		else $this->set($result, $source);
 	}
 	
 	public function set_by_regs($data, $source=Value::BY_OPERATION)
 	{
 		$result=$this->compose_from_regs($data);
-		if ($result instanceof \Report_impossible) $this->set_failed($source);
+		if ($result instanceof \Report_impossible) $this->set_failed($result, $source);
 		else $this->set($result, $source);
 	}
 	
@@ -170,7 +170,9 @@ trait Value_registers
 	// реализация Pathway
 	public function follow_track($code, $line=[])
 	{
-		return $this->follow_reg_track($code, $line);
+		$result=$this->follow_reg_track($code, $line);
+		if (empty($result)) return new \Report_unknown_track($code, $this);
+		return $result;
 	}
 	
 	public function follow_reg_track($code, $line=[])
@@ -196,7 +198,7 @@ class RegisterSet extends ValueSet
 		$master_content=$this->master->request();
 		if ($master_content instanceof \Report_impossible)
 		{
-			$value->set_failed();
+			$value->set_failed($master_content);
 			return;
 		}
 		elseif ($master_content instanceof \Report_tasks)
@@ -226,11 +228,12 @@ class RegisterSet extends ValueSet
 		}
 		else die('NO REGISTER GENERATOR');
 
-		if ($result instanceof \Report)
+		if ($result instanceof \Report_impossible)
 		{
-			$value->set_failed();
+			$value->set_failed($result);
 			return;
 		}
+		elseif (\is_mediator($result)) throw new \Pokeliga\Entlink\UnknownMediatorException();
 		else $value->set($result, $this->master->last_source);
 	}
 }

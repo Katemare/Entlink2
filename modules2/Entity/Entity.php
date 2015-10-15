@@ -14,7 +14,7 @@ namespace Pokeliga\Entity;
 load_debug_concern(__DIR__, 'Entity');
 
 class Entity
-	implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway, \Pokeliga\Data\Context, \Pokeliga\Entlink\Multiton_argument
+	implements \Pokeliga\Template\Templater, \Pokeliga\Data\ValueHost, \Pokeliga\Data\Pathway, \Pokeliga\Data\Context, \Pokeliga\Entlink\Multiton_argument, \Pokeliga\Template\BakeHost
 {
 	use \Pokeliga\Entlink\Object_id, \Pokeliga\Entlink\Caller_backreference, Logger_Entity, \Pokeliga\Data\Context_self;
 	
@@ -225,11 +225,11 @@ class Entity
 	{
 		$basic_aspect=$this->get_aspect('basic');
 		$table=$basic_aspect->default_table();
-		$data=\Pokeliga\Retriever\Request_by_id::instance($table)->get_data_set($this->db_id);
-		if ($data instanceof \Report_task)
+		$data=\Pokeliga\Retriever\Request_by_id::instance($table)->get_data_or_promise($this->db_id);
+		if ($data instanceof \Report_promise)
 		{
 			$task=Task_for_entity_verify_id::for_entity($this);
-			return new \Report_task($task, $this);
+			return new \Report_promise($task, $this);
 		}
 		elseif ($data instanceof \Report_impossible)
 		{
@@ -397,12 +397,18 @@ class Entity
 	// для соответствия интерфейсу Pathway
 	public function follow_track($track, $line=[])
 	{
-		return $this->type->follow_track($track);
+		return $this->type->follow_track($track, $line);
 	}
 	
-	public function spawn_page($type_slug, $parts=[])
+	public function spawn_page($type_slug, $parts=[]) { }
+	
+	public function bake_key()
 	{
+		if ($this->is_failed()) return '>'.$this->id_group.'#0';
+		if ($this->has_db_id()) return '>'.$this->id_group.'#'.$this->db_id;
 	}
+	
+	public function should_be_baked() { return $this->has_db_id(); }
 	
 	public function __call($name, $args) // теперь используется только для прямых вызовов типа $pokemon->owned(). FIXME! и вообще стоит избавиться.
 	{

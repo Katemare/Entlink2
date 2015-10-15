@@ -4,9 +4,10 @@ namespace Pokeliga\Data;
 
 class DataFront extends \Pokeliga\Entlink\ModuleFront implements Pathway
 {
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
 		if ($track==='temporal') return $this->get_time_track();
+		return new \Report_unknown_track($track, $this);
 	}
 	
 	public function get_time_track()

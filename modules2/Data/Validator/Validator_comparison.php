@@ -22,7 +22,7 @@ abstract class Validator_comparison extends Validator
 		$references=$this->value_model($this->reference_code);
 		if (empty($references))
 		{
-			$this->success();
+			$this->finish();
 			return;
 		}
 		elseif ($references instanceof \Report_impossible) return $references;

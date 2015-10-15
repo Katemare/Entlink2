@@ -2,7 +2,7 @@
 namespace Pokeliga\Entity;
 
 // отличается запоминанием того, изменилось ли что-нибудь по сравнению с БД, знанием о присвоении Keeper'ом и так далее. кроме того, только у этих значений есть понятие устаревания (irrelevant).
-class Value_of_entity extends \Pokeliga\Data\Value
+class Value_of_entity extends \Pokeliga\Data\Value implements \Pokeliga\Template\Bakeable, \Pokeliga\Template\ValueContent_stability
 {
 	const
 		STATE_IRRELEVANT	=self::STATE_FAILED+1, // когда значение задано, а затем изменено, то если у значения есть зависимые значения - то они теряют актуальность, и далее по цепочке. неактуальные значения вычисляются заново при обращении к ним.
@@ -23,7 +23,7 @@ class Value_of_entity extends \Pokeliga\Data\Value
 	
 	public function to_fill()
 	{
-		return parent::to_fill()) or $this->has_state(static::STATE_IRRELEVANT);
+		return parent::to_fill() or $this->has_state(static::STATE_IRRELEVANT);
 	}
 	
 	public function dependants_are_irrelevant()
@@ -77,11 +77,54 @@ class Value_of_entity extends \Pokeliga\Data\Value
 		return $keeper;
 	}
 	
+	public function entity()
+	{
+		return $this->master->entity;
+	}
+	
+	public function aspect_code()
+	{
+		if (!$this->in_value_model('aspect_code'))
+		{
+			$type=$this->entity()->type;
+			$this->model['aspect_code']=$type::locate_name($this->code);
+		}
+		return $this->value_model_now('aspect_code');
+	}
+	
 	public function get_aspect($now=true)
 	{
-		$type=$this->master->entity->type;
-		$aspect_code=$type::locate-name($this->code);
-		return $this->master->entity->get_aspect($aspect_code, $now);
+		$aspect_code=$this->aspect_code();
+		return $this->entity()->get_aspect($aspect_code, $now);
+	}
+	
+	public function is_content_stable()
+	{
+		if ($this->value_model_or_default('stable', true)!==true) return false;
+		
+		$report=new \Pokeliga\Template\Report_stability($this);
+		$report->expensive=$this->value_model_or_default('expensive', false);
+		$report->stable_until=$this->value_model_or_default('stable_until', null);
+		
+		$keys=[$this->entity()->bake_key()=>$this->aspect_code()];
+		
+		if ($this->value_model_or_default('stable_if_resetable', false)===true) $report->resetable_only_keys=$keys;
+		else $report->other_keys=$keys;
+		$report->update_stability();
+		return $report;
+	}
+	
+	public function bake(&$elements_baked=0)
+	{
+		if ($this->is_failed()) return $this->report->bake($elements_baked);
+		elseif ($this->is_filled()) return $this->bake_filled($elements_baked);
+		else throw new \Exception('unexpected bake');
+	}
+	
+	protected function bake_filled(&$elements_baked=0)
+	{
+		$baked_elements=1;
+		return var_export($this->content, true); // FIXME: возможно, для некоторых случаев следует использовать специфичные для типа методы, например, для запекания объектов. но пока не ясно, насколько это нужно.
 	}
 }
 

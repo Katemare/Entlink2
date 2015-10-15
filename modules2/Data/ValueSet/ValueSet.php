@@ -102,8 +102,7 @@ class ValueSet implements ValueHost, Pathway, \Pokeliga\Template\Templater
 		
 		if (!$this->model_code_exists($code))
 		{
-			if ($soft) return new \Report_impossible('unknown_value_code', $this);
-			vdump($this);
+			if ($soft) return new \Report_unknown_code($code, $this);
 			throw new \Exception('unknown ValueSet value code');
 		}
 		if (!array_key_exists($code, $this->values))

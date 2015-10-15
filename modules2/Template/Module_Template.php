@@ -12,24 +12,49 @@ class Module_Template extends \Pokeliga\Entlink\Module
 		[
 			'Templater'=>'Template_interfaces',
 			
-			'Template'=>'Template',
+			'Template'				=>'Template/Template',
+			'TemplateElement'		=>'Template/TemplateElement',
+			'Template_from_text'	=>'Template/Template_from_text',
+			'Template_from_db'		=>'Template/Template_from_db',
+			'Template_composed'		=>'Template/Template_composed',
 			
-			'Context'=>'Context',
-			'Pathway'=>'Context',
-			'Template_context'=>'Context',
+			'Context'				=>'Context',
+			'Pathway'				=>'Context',
+			'Template_context'		=>'Context',
 			
-			'Template_period'=>'Template_date',
+			'Template_period'		=>'Template_date',
 			
-			'CodeFragment'=>'CodeFragment',
+			'CodeFragment'			=>'CodeFragment',
 			
-			'Paged'=>'Paginator',
-			'Template_pages'=>'Paginator',
+			'Paged'					=>'Paginator',
+			'Template_pages'		=>'Paginator',
 			
-			'Task_retrieve_cache'=>'Cache',
-			'Task_save_cache'=>'Cache',
-			'Task_reset_cache'=>'Cache',
+			'TemplateCache'			=>'TemplateCache/TemplateCache',
+			'Stability'				=>'TemplateCache/Stability',
+			'ValueContent_stability'=>'TemplateCache/Stability',
+			'Pathway_stability'		=>'TemplateCache/Stability',
+			'Templater_stability'	=>'TemplateCache/Stability',
+			'Bakeable'				=>'TemplateCache/Stability',
+			'BakeHost'				=>'TemplateCache/Stability',
+			
+			'TemplateCompiler'		=>'TemplateCompiler/TemplateCompiler',
+			'Parser'				=>'TemplateCompiler/Parser',
+			'Subparser'				=>'TemplateCompiler/Parser',
+			'ParserCommon'			=>'TemplateCompiler/Parser',
+			'ParserCommon_expression'=>'TemplateCompiler/ExpressionParser',
+			'PathwayParser'			=>'TemplateCompiler/PathwayParser',
+			'PathwayParser_value'	=>'TemplateCompiler/PathwayParser_value',
+			'PathwayParser_keyword'	=>'TemplateCompiler/PathwayParser_keyword',
+			'LineParser'			=>'TemplateCompiler/LineParser',
+			'ExpressionParser'		=>'TemplateCompiler/ExpressionParser',
 		],
-		$classex='(?<file>Template|CodeFragment)[_$]';
+		$classex='(?<file>CodeParser|BlockParser|OperandParser)[_$]',
+		$class_to_file=
+		[
+			'CodeParser'	=>'TemplateCompiler/CodeParser',
+			'BlockParser'	=>'TemplateCompiler/BlockParser',
+			'OperandParser'	=>'TemplateCompiler/OperandParser'
+		];
 		
 	static
 		$conditionex='/{{#if:(?<condition>\s*(?<param>[a-z_\.])\s*(?<operation>(?<op>=|>|<|>=|<=|!=)\s*(?<value>.+?)\s*)?)\|(?<on_true>.+?)(\|(?<on_false>.+?))?}}/', // примитивное условие, не поддерживающее командной строки у шаблонов в on_true и on_false

@@ -388,7 +388,7 @@ abstract class Page extends \Pokeliga\Task\Task implements \Pokeliga\Data\Pathwa
 	
 	public function follow_track($track, $line=[])
 	{
-		return $this->sign_report(new \Report_impossible('no_path'));
+		return $this->sign_report(new \Report_unknown_track($track, $this));
 	}
 }
 

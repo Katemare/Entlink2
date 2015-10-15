@@ -58,7 +58,7 @@ abstract class Filler extends Task_for_value
 	
 	public function fill()
 	{
-		return $this->to_promise();
+		return $this->report_promise();
 	}
 	
 	public function progress()
@@ -91,7 +91,7 @@ abstract class Filler extends Task_for_value
 	
 	public function apply_failed()
 	{
-		$this->value->set_failed($this->source_type);
+		$this->value->set_failed($this->report(), $this->source_type);
 	}
 }
 
@@ -112,7 +112,7 @@ class Filler_by_task extends Filler
 	public function coroutine()
 	{
 		yield $need=$this->task->to_need();
-		$this->finish_by_task($need);
+		$this->finish($need);
 	}
 }
 

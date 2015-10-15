@@ -1,4 +1,5 @@
 <?
+namespace Pokeliga\Data;
 
 interface HasContext
 {
@@ -55,8 +56,8 @@ class SpecialContext implements Context
 	
 	public function follow_track($track, $line=[])
 	{
-		if (empty($this->gateways)) return;
 		if (array_key_exists($track, $this->gateways)) return $this->gateways[$track];
+		return new \Report_unknown_track($track, $this);
 	}
 	
 	public function gateways()

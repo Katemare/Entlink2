@@ -36,6 +36,7 @@ class Module_Data extends \Pokeliga\Entlink\Module
 				'file_by_address_exists', 'file_by_address_doesnt_exist'
 			]
 		],
+		$global_classes=['Report_unknown_track', 'Report_unknown_code'],
 		$quick_classes=
 		[
 			'DataFront'			=>'Module_DataFront',
@@ -53,8 +54,10 @@ class Module_Data extends \Pokeliga\Entlink\Module
 			'Value_has_registers'		=>'ValueSet/RegisterSet',
 			'Value_registers'			=>'ValueSet/RegisterSet',
 			
-			'Pathway'					=>'Pathway',
-			'Task_resolve_track'		=>'Pathway',
+			'Pathway'					=>'Pathway/Pathway',
+			'Tracker'					=>'Pathway/Tracker',
+			'Track_value'				=>'Pathway/Tracker',
+			'Context'					=>'Context',
 			
 			'Template_value_delay'		=>'Data_Template',
 			'Template_found_options'	=>'Data_Template',
@@ -78,6 +81,9 @@ class Module_Data extends \Pokeliga\Entlink\Module
 			'InputSet'					=>'ValueSet/InputSet',
 			'InputSet_complex'			=>'ValueSet/InputSet',
 			'Multistage_input'			=>'ValueSet/InputSet',
+			
+			'Report_unknown_track'		=>'Report_unknown',
+			'Report_unknown_code'		=>'Report_unknown',
 			
 			'Task_for_value'			=>'Filler',
 			'Filler'					=>'Filler',

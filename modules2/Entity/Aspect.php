@@ -5,6 +5,8 @@ namespace Pokeliga\Entity;
 
 class Aspect implements \Pokeliga\Template\Templater
 {
+	use \Pokeliga\Entlink\StaticOwner;
+	
 	const
 		MODEL_MODIFIED=false,
 		MODEL_REDECLARED=false,

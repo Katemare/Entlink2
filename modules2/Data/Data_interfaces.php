@@ -10,9 +10,11 @@ interface ValueModel // для объектов, поставляющих мод
 {
 	public function value_model($code=null, $strict=true);
 	
-	public function value_model_soft($code);
+	public function value_model_or_fail($code);
 	
 	public function value_model_now($code);
+	
+	public function value_model_or_default($code, $default);
 	
 	public function in_value_model($code);
 }
@@ -24,14 +26,19 @@ trait ValueModel_from_link // для использования на объек�
 		return $this->get_value()->value_model($code, $strict);
 	}
 	
-	public function value_model_soft($code)
+	public function value_model_or_fail($code)
 	{
-		return $this->get_value()->value_model_soft($code);
+		return $this->get_value()->value_model_or_fail($code);
 	}
 	
 	public function value_model_now($code)
 	{
 		return $this->get_value()->value_model_now($code);
+	}
+	
+	public function value_model_or_default($code, $default)
+	{
+		return $this->get_value()->value_model_or_default($code, $default);
 	}
 	
 	public function in_value_model($code)
@@ -68,11 +75,17 @@ trait ValueModel_owner // для использования в объектах,
 	}
 	
 	// как предыдущее, но поскольку $strict не стоит, то в случае отсутствия значения возвращает \Report_impossible. Кроме того, ответ в виде задачи также превращается в \Report_impossible.
-	public function value_model_soft($code)
+	public function value_model_or_fail($code)
 	{
 		$result=$this->value_model($code, false);
 		if ($result instanceof \Report_delay) return new \Report_impossible('model_not_ready', $this);
 		return $result;
+	}
+	
+	public function value_model_or_default($code, $default)
+	{
+		if (!$this->in_value_model($code)) return $default;
+		return $this->value_model($code);
 	}
 	
 	// возвращает значение или же останавливается (должно быть исключение). для применения в конструкциях, которые не рассчитаны на обработку отчётов и предполагают от модели поведения массива.
@@ -129,7 +142,7 @@ trait ValueHost_standard
 {
 	public function ValueHost_request($code)
 	{
-		return new \Report_impossible('unknown_subvalue_code: '.$code, $this);
+		return new \Report_unknown_code($this);
 	}
 	
 	public function ValueHost_value($code)

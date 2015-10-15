@@ -32,7 +32,7 @@ class Dependancy_call_aspect_shift extends \Pokeliga\Task\Dependancy_call
 
 abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Data\Pathway // на самом деле к типизатору в этом качестве обращается только сущность, но интерфейсам он всё равно соответствует.
 {
-	use Logger_Entity, \Pokeliga\Nav\Page_spawner, \Pokeliga\Entlink\StaticOwner;
+	use Logger_Entity, \Pokeliga\Entlink\StaticOwner;
 	
 	const
 		VALUE_NAME		=1,
@@ -445,7 +445,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 				$task->complete();
 				$result=$task->report();
 			}
-			if ($result instanceof \Report_resolution) $result=$result->resolution;
+			if ($result instanceof \Report_resolution) $result=$result->resolution();
 		}
 		elseif ( ($analysis['mode']===EntityType::TEMPLATE_NAME) && ($result instanceof \Report_task) ) $result=$result->task;
 
@@ -535,7 +535,7 @@ abstract class EntityType implements \Pokeliga\Template\Templater, \Pokeliga\Dat
 			return $result;
 		}
 		
-		return new \Report_impossible('no_track 3', $this);
+		return new \Report_unknown_track($track, $this);
 	}
 	
 	public $RightHost=null;

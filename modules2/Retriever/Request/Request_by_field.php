@@ -3,7 +3,7 @@ namespace Pokeliga\Retriever;
 
 class Request_by_field extends Request implements Request_groupable
 {
-	use Request_get_data_one_arg, \Pokeliga\Entlink\Multiton
+	use \Pokeliga\Entlink\Multiton
 	{
 		\Pokeliga\Entlink\Multiton::make_Multiton_class_name as std_make_Multiton_class_name;
 		\Pokeliga\Entlink\Multiton::make_Multiton_key as std_make_Multiton_key;
@@ -139,7 +139,7 @@ class Request_by_field extends Request implements Request_groupable
 		return $row[$this->field];
 	}
 	
-	public function set_data($value=null)
+	public function set_data($value=null, ...$keys)
 	{
 		if ($this->data===false) return $this->sign_report(new \Report_impossible('no_table'));
 		if ($value instanceof \Report_impossible) return $this->sign_report(new \Report_impossible('bad_key'));
@@ -159,7 +159,7 @@ class Request_by_field extends Request implements Request_groupable
 		}
 	}
 	
-	public function compose_data($value=null)
+	public function compose_data($value=null, ...$keys)
 	{
 		if (is_array($value))
 		{

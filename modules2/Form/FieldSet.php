@@ -290,11 +290,11 @@ class FieldSet extends \Pokeliga\Data\InputSet_complex implements \Pokeliga\Temp
 		return [$this];
 	}
 	
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
 		$tracks=$this->tracks();
 		if (array_key_exists($track, $tracks)) return $tracks[$track];
-		return parent::follow_track($track);
+		return parent::follow_track($track, $line);
 	}
 	
 	public $tracks;

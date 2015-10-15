@@ -164,7 +164,7 @@ class ValueType_entity extends \Pokeliga\Data\ValueType
 		$entity=$this->get_entity();
 		if ($entity instanceof \Report_impossible) return $entity;
 		if ($entity instanceof \Report_tasks) return $entity->force_again();
-		return $entity->follow_track($track, $line=[]);
+		return $entity->follow_track($track, $line);
 	}
 	
 	public function list_validators()

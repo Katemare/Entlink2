@@ -82,12 +82,10 @@ class Module_User extends Module implements ValueHost, Pathway
 		return $this->std_ValueHost_request($code);
 	}
 	
-	public function follow_track($track)
+	public function follow_track($track, $line=[])
 	{
-		if ($track==='current_user')
-		{
-			return User::current_user();
-		}
+		if ($track==='current_user') return User::current_user();
+		return new \Report_unknown_track($track, $this);
 	}
 }
 

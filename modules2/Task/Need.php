@@ -55,7 +55,7 @@ class Need_one extends Need
 		{
 			if ($item->completed())
 			{
-				$this->finish_by_promise($item);
+				$this->finish($item);
 				return;
 			}
 			$this->promise=$item;
@@ -67,7 +67,7 @@ class Need_one extends Need
 	
 	public function progress()
 	{
-		$this->finish_by_promise($this->promise);
+		$this->finish($this->promise);
 	}
 }
 
@@ -79,7 +79,7 @@ class Need_all extends Need implements \ArrayAccess
 	public function __construct($container, $mandatory=true)
 	{
 		parent::__construct($mandatory);
-		if (empty($container)) $this->success();
+		if (empty($container)) $this->finish();
 		else $this->receive_container($container);
 	}
 	
@@ -180,7 +180,7 @@ class Need_call extends Need
 			yield $result;
 			if ($result instanceof \Pokeliga\Entlink\FinalPromise) break;
 		}
-		if ($result instanceof \Pokeliga\Entlink\Promise) $this->finish_by_promise($result);
+		if ($result instanceof \Pokeliga\Entlink\Promise) $this->finish($result);
 		elseif (\is_mediator($result)) throw new \Pokeliga\Entlink\UnknownMediatorException();
 		else $this->finish_with_resolution($result);
 	}

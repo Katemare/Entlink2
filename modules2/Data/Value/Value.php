@@ -48,6 +48,7 @@ class Value implements \Pokeliga\Template\Templater, ValueContent, ValueHost_com
 		$filler_task=null,
 		
 		$state=Value::STATE_UNFILLED,
+		$report,
 		$last_source=null,
 		
 		$valid=null; // сведение о действительности. возможные значения: null - не проверялась. false - плохое. true - хорошее. объект класса Validator - идёт проверка.
@@ -210,7 +211,7 @@ class Value implements \Pokeliga\Template\Templater, ValueContent, ValueHost_com
 		$content=$this->normalize($content, $validity, $compliant); // возвращает обработанное значение или \Report_impossible
 		if ($content instanceof \Report_impossible)
 		{
-			$this->set_failed($source);
+			$this->set_failed($content, $source);
 			return;
 		}
 
@@ -220,7 +221,7 @@ class Value implements \Pokeliga\Template\Templater, ValueContent, ValueHost_com
 		$result=$this->before_set($content, $source);
 		if ($result instanceof \Report_impossible)
 		{
-			$this->set_failed($source);
+			$this->set_failed($result, $source);
 			return;
 		}
 		
@@ -255,16 +256,21 @@ class Value implements \Pokeliga\Template\Templater, ValueContent, ValueHost_com
 		$this->make_calls('before_set', $content, $source); // STUB: в будущем может обрабатывать ответ от подписанных вызовов.
 	}
 	
-	public function set_failed($source=Value::NEUTRAL_CHANGE)
+	public function set_failed($report=null, $source=Value::NEUTRAL_CHANGE)
 	{
 		$this->last_source=$source;
 		$this->filler_task=null;
 		$this->set_state(static::STATE_FAILED);
+		$this->report=$report;
 		$this->valid=false; // можно установить и null, при запросе всё равно будет переправлено на false.
 	}
 	
 	public function state() { return $this->state; }
-	public function set_state($state) { $this->state=$state; }
+	public function set_state($state)
+	{
+		$this->state=$state;
+		$this->report=null;
+	}
 	public function has_state($state) { return $this->state===$state; }
 	public function has_any_state(...$states) { return in_array($this->state, $states); }
 	public function is_failed() { return $this->has_state(static::STATE_FAILED); } // проваленное значение?
@@ -469,7 +475,8 @@ class Value implements \Pokeliga\Template\Templater, ValueContent, ValueHost_com
 		}		
 		elseif ($this->is_failed())
 		{
-			return new \Report_impossible('value_failed_requested', $this);
+			if ($this->report===null) $this->report=new \Report_impossible('value_failed_requested', $this);
+			return $this->report;
 		}
 		die ('UNKNOWN STATE 3');
 	}

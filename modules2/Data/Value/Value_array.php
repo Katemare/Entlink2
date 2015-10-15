@@ -231,7 +231,7 @@ class ValueType_array extends ValueType implements Value_provides_options, Pathw
 	{
 		if ($track===static::ARRAY_TRACK) return $this->subvalues();
 		if ($track===static::REGSET_TRACK) return $this->RegSet();
-		return $this->subvalues()->produce_value_soft($track);
+		return $this->subvalues()->follow_track($track, $line);
 	}
 }
 
@@ -249,7 +249,7 @@ class ArraySet extends RegisterSet
 		
 		$master_content=$master_content->resolution();
 		if (array_key_exists($value->code, $master_content)) $value->set($master_content[$value->code], $this->master->last_source);
-		else $value->set_failed();
+		else $value->set_failed(new \Report_unknown_code($value->code, $this));
 	}
 }
 

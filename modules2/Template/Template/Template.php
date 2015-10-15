@@ -12,7 +12,7 @@ abstract class Template extends \Pokeliga\Task\Task implements \Pokeliga\Data\Ha
 		STEP_NEED_LINE		=0,
 		STEP_CHECK_CACHE	=1,
 		STEP_RESOLVE_LINE	=2,
-		STEP_STORE_CACHE	=3;
+		STEP_STORE_CACHE	=3,
 		STEP_FINISH			=4;
 	
 	public
@@ -48,8 +48,10 @@ abstract class Template extends \Pokeliga\Task\Task implements \Pokeliga\Data\Ha
 		
 		if ($this->is_cacheable())
 		{
-			yield $need=new 
+			// yield $need=new 
 		}
+		
+		// WIP!!!
 	}
 	
 	public function setup_subtemplate($template)
@@ -131,7 +133,7 @@ trait Task_resolves_line
 			}
 		}
 		if (!empty($tasks)) return new \Report_tasks($tasks, $this);
-		else return new \Report_success(, $this);
+		else return new \Report_success($this);
 	}
 	
 	public abstract function compacter_host();

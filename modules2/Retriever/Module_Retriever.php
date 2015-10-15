@@ -29,6 +29,7 @@ class Module_Retriever extends \Pokeliga\Entlink\Module
 			'Task_processes_request'	=>'Request/Request',
 			
 			'RequestTicket'				=>'RequestTicket/RequestTicket',
+			'RequestTicket_special'		=>'RequestTicket/RequestTicket',
 			'Task_request_get_data'		=>'RequestTicket/RequestTicket_existing_request',
 			'RequestTicket_existing_request'=>'RequestTicket/RequestTicket_existing_request',
 			
@@ -58,6 +59,7 @@ class Module_Retriever extends \Pokeliga\Entlink\Module
 			'Request_page'				=>'Request/Request_reuser/Request_ordered',
 			'Request_random'			=>'Request/Request_reuser/Request_random',
 			'Request_count'				=>'Request/Request_reuser/Request_group',
+			'Request_groupable'			=>'Request/Request_interfaces',
 			'Request_group_functions'	=>'Request/Request_reuser/Request_group',
 //			'Request_grouped_functions'	=>'Request_reuser',
 			'RequestTicket_union'		=>'Request/Request_reuser/Request_union',

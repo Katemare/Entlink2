@@ -274,17 +274,15 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 	public function finish($success=true)
 	{
 		if ($this->completed()) return;
-		if ($success instanceof \Report_final) $this->finish_by_report($success);
-		elseif ($success instanceof \Pokeliga\Entlink\Promise) $this->finish_by_promise($success);
+		$this->invalidate_report();
+		if ($success instanceof \Pokeliga\Entlink\Promise) $this->finish_by_promise($success);
 		elseif (is_bool($success)) $this->finish_by_bool($success);
 		else die ('INVALID SUCCESS');
 	}
 	
-	public function success() { $this->finish_by_bool(true); }
 	private function finish_by_bool($success=true)
 	{
 		if ($this->completed()) return;
-		$this->invalidate_report();
 		$this->unregister_dependancies();
 		$this->progressable=false;
 		$this->complete=$success;
@@ -317,13 +315,13 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 		if ($promise->failed()) $this->impossible($promise);
 		else $this->finish_with_resolution($promise->resolution());
 	}
-	public function finish_by_task($task) { $this->finish_by_promise($task); }
-	public function finish_by_report($report) { $this->finish_by_promise($report); }
 	
 	public function impossible($errors=null)
 	{
 		if ($this->completed()) return;
 		if ($errors instanceof \Pokeliga\Entlink\Promise and !$errors->failed()) throw new \Exception('impossible() by non-failed Promise');
+		if ($errors instanceof \Report_impossible) $this->report=$errors;
+		else $this->invalidate_report();
 		if ($errors instanceof \Pokeliga\Entlink\ErrorsContainer) $errors=$errors->get_errors();
 		
 		if (is_array($errors)) $this->errors=$errors;
@@ -335,11 +333,11 @@ abstract class Task implements \Pokeliga\Entlink\Promise
 	public function finish_with_resolution($resolution)
 	{
 		if ($this->completed()) return;
-		if ($resolution instanceof \Report_impossible) $this->finish_by_report($resolution);
+		if ($resolution instanceof \Report_impossible) $this->impossible($resolution);
 		elseif (\is_mediator($resolution)) throw new \Exception('bad resolution');
 		
 		$this->resolution=$resolution;
-		$this->success();
+		$this->finish();
 	}
 	
 	public function invalidate_report()
@@ -486,7 +484,7 @@ trait Task_binary
 	public
 		$task_binary=true;
 		
-	public function finish_boool($success=true)
+	public function finish_bool($success=true)
 	{
 		if ($success and $this->task_binary)
 		{
@@ -540,23 +538,23 @@ trait Task_steps
 	public function process_step_report($result)
 	{
 		if ($this->completed()) return;
-		elseif ($result===null) throw new \Exception('unknown task_step');
+		elseif ($result===null) throw new \Exception('unknown task_step 1');
 		elseif ($result===true) return;
 		elseif ($result instanceof \Report_dependant)
 		{
 			$result->register_dependancies_for($this);
 			if ($this->progressable===true) $this->move_forward(); // если все зависимости отказались уже выполненными.
 		}
-		elseif (\is_mediator($result) and $result instanceof \Promise)
+		elseif (\is_mediator($result) and $result instanceof \Pokeliga\Entlink\Promise)
 		{
 			if ($result->completed()) $this->finish_by_promise($result);
 			else
 			{
-				$promise->register_dependancies_for($this);
+				$result->register_dependancies_for($this);
 				if ($this->progressable===true) $this->move_forward(); // если все зависимости отказались уже выполненными.
 			}
 		}
-		else throw new \Exception('unknown task_step');
+		else throw new \Exception('unknown task_step 2');
 	}
 	
 	public function dependancies_resolved()
