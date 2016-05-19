@@ -15,6 +15,15 @@ abstract class ClientAgent extends Agent
 		foreach ($this->clients as $client) $client->send_clientward($message);
 	}
 	
+	public function register_client(Client $client)
+	{
+		$this->clients[$client->ident()]=$client;
+	}
+	public function deregister_client(Client $client)
+	{
+		unset($this->clients[$client->ident()]);
+	}
+	
 	// process message from client
 	public function process_client_message(MessageContent $message, Client $client)
 	{
@@ -70,6 +79,14 @@ class AnonAgent extends ClientAgent
 			$this->handle=$this->generate_handle();
 		}
 		return $this->handle;
+	}
+	
+	public function set_handle($handle)
+	{
+		if ($this->handle===$handle) return;
+		$old_handle=$this->handle;
+		$this->handle=$handle;
+		Server()->on_handle_change($this, $old_handle);
 	}
 	
 	protected function generate_handle()

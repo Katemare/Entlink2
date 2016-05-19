@@ -130,13 +130,17 @@ Chat.prototype.initServer=function(target)
 
 Chat.prototype.initProcessors=function()
 {
-	this.processors={};
-	this.processors.info=this.processInfo.bind(this);
-	this.processors.auth=this.processAuth.bind(this);
-	this.processors.close=this.processClose.bind(this);
-	this.processors.error=this.processError.bind(this);
-	this.processors.ident=this.processIdent.bind(this);
-	this.processors.threadMessage=this.processThreadMessage.bind(this);
+	this.processors=new Map();
+	
+	this.processors.priority=new Map();
+	this.processors.priority.set('join', this.processJoin.bind(this));
+	
+	this.processors.set('info', this.processInfo.bind(this));
+	this.processors.set('auth', this.processAuth.bind(this));
+	this.processors.set('close', this.processClose.bind(this));
+	this.processors.set('error', this.processError.bind(this));
+	this.processors.set('ident', this.processIdent.bind(this));
+	this.processors.set('threadMessage', this.processThreadMessage.bind(this));
 }
 
 Chat.prototype.start=function()
@@ -165,10 +169,14 @@ Chat.prototype.onMessage=function(content)
 
 Chat.prototype.getProcessorByMessage=function(message)
 {
-	if (message.thread!==undefined) return this.processors['threadMessage'];
-	else return this.processors[message.code];
+	if (this.processors.priority.has(message.code)) return this.processors.priority.get(message.code);
+	if (message.thread!==undefined) return this.processors.get('threadMessage');
+	else return this.processors.get(message.code);
 }
-Chat.prototype.onUnknownMessage=function(message) { this.logError('Сервер прислал неизвестное сообщение. Возможно, механизм чата был обновлён: попробуйте обновить страницу.'); }
+Chat.prototype.onUnknownMessage=function(message)
+{
+	this.logError('Сервер прислал неизвестное сообщение. Возможно, механизм чата был обновлён: попробуйте обновить страницу.');
+}
 Chat.prototype.onException=function(e)
 {
 	this.logError('В работе чата произошла ошибка: '+e.toString()+'. Попробуйте обновить страницу.');
@@ -253,14 +261,27 @@ Chat.prototype.processThreadMessage=function(message)
 
 Chat.prototype.processIdent=function(message)
 {
-	var ident=message.getContent('ident');
+	this.applyIdentityData(message.content);
+}
+
+Chat.prototype.processJoin=function(message)
+{
+	message.getContent('members').forEach(this.applyIdentityData.bind(this));
+	var tab=this.tabs.newTab(message.thread);
+	tab.title=message.getContent('title');
+	this.tabs.activateTab(tab);
+}
+
+Chat.prototype.applyIdentityData=function(data)
+{
+	var ident=data.ident;
 	var identity=this.tryGlobalIdentity(ident);
 	if (!identity)
 	{
 		identity=new Identity(ident);
 		this.registerGlobalIdentity(identity);
 	}
-	identity.applyData(message.content);
+	identity.applyData(data);
 }
 
 Chat.prototype.tryGlobalIdentity=function(ident)
@@ -660,12 +681,18 @@ Tab.prototype.createElements=function()
 Tab.prototype.createHeadElement=function()
 {
 	this.headElement=document.createElement('li');
+	this.headElement.addEventListener('click', this.onHeadClick.bind(this));
 	this.master.headsElement.appendChild(this.headElement);
 }
 
 Tab.prototype.updateHeadElement=function()
 {
 	this.headElement.innerHTML=this.title;
+}
+
+Tab.prototype.onHeadClick=function()
+{
+	this.master.activateTab(this);
 }
 
 Tab.prototype.createContentElement=function()
@@ -712,12 +739,22 @@ Tab.prototype.promiseIdentity=function(identity)
 	return identity.promise(this);
 }
 
+Tab.prototype.createMessage=function(code, content)
+{
+	if (content===undefined) content={};
+	else if (!(content instanceof Object)) content={text: content};
+	content.thread=this.id;
+	return new Message(code, content);
+}
+
 Tab.prototype.activate=function()
 {
 	if (this.active) return;
 	this.headElement.classList.add('active');
 	this.contentElement.classList.add('active');
 	this.active=true;
+	
+	this.createMessage('active');
 }
 
 Tab.prototype.deactivate=function()

@@ -20,6 +20,8 @@ abstract class HandleManager
 	
 	public abstract function approve_custom_handle(Persona $self, &$handle, &$reason=false);
 	
+	public abstract function is_custom_handle_valid($handle);
+	
 	protected function suggest_free_handle(Persona $self=null, $previous_handle=null, &$carry=null)
 	{
 		$tries=0;
@@ -66,5 +68,7 @@ class StrictHandleManager extends HandleManager
 		if ($reason!==false) $reason=Template_from_db::with_db_key('chat.no_custom_handles');
 		return false;
 	}
+	
+	public function is_custom_handle_valid($handle) { return false; }
 }
 ?>

@@ -29,7 +29,18 @@ abstract class MessageContent
 	}
 	
 	public function code() { return $this->code; }
-	public function content() { return $this->content; }
+	public function content($code=null)
+	{
+		if ($code===null) return $this->content;
+		if (is_array($this->content) and array_key_exists($code, $this->content)) return $this->content[$code];
+		return new Report_impossible('no content code');
+	}
+	public function content_or_default($code, $default=null)
+	{
+		$result=$this->content($code);
+		if ($result instanceof Report) return $default;
+		return $result;
+	}
 	public function timestamp() { return $this->timestamp; }
 	
 	// this basically is ChatServer's concern, but this way we can cache composed messages, which is useful for logs and such.
@@ -68,7 +79,7 @@ abstract class MessageContent
 
 class Message extends MessageContent
 {	
-	private
+	protected
 		$originator, 	// MessageOriginator
 		$target;		// MessageTarget
 	

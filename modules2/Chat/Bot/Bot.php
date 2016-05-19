@@ -1,7 +1,7 @@
 <?
 
 // this bot runs server-side
-class Bot extends Agent
+abstract class Bot extends Agent implements Commandable
 {
 	use IgnoreBouncedMessages, Object_id;
 	
@@ -22,6 +22,8 @@ class Bot extends Agent
 	{
 		// WIP
 	}
+	
+	public abstract function create_command_response(Message $message, $response);
 }
 
 ?>

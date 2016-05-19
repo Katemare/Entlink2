@@ -3,12 +3,15 @@
 // поддерживает связь с соединениями и общие данные.
 class ChatServer implements MessageNode
 {
+	use StandardMessageProcessor;
+	
 	const
 		CONSOLE_THREAD_KEY=0,
 	
 		DEFAULT_ANON_HANDLE_MANAGER='StrictHandleManager',
 	
-		ERROR_TEMPLATE_KEY='chat.unknown_error',
+		ERROR_TEMPLATE_KEY		='chat.unknown_error',
+		MY_HANDLE_CHANGED_KEY	='chat.my_handle_changed',
 	
 		THREAD_KEY='thread',// ключ для содержимого сообщения, контекстного для треда.
 		JSON_MAX_DEPTH=5,	// максимальная глубина данных в сообщении.
@@ -47,12 +50,7 @@ class ChatServer implements MessageNode
 		$topics=[],		// of Topic
 		$agents=[],		// of Agent
 		
-		$anon_handle_manager=null,
-		
-		$message_processors=
-		[
-			'auth'=>'process_auth_message'
-		];
+		$anon_handle_manager=null;
 	
 	public function __construct($port)
 	{
@@ -80,7 +78,13 @@ class ChatServer implements MessageNode
 	
 	protected function prepare_to_start()
 	{
+		$this->init_message_processors();
 		$this->threads[static::CONSOLE_THREAD_KEY]=$this->create_console_thread();
+	}
+	
+	protected function init_message_processors()
+	{
+		$this->message_processors['auth']=[$this, 'process_auth_message'];
 	}
 	
 	protected function create_console_thread()
@@ -261,18 +265,9 @@ class ChatServer implements MessageNode
 		return $message;
 	}
 	
-	public function process_incoming_message(Message $message)
+	protected function is_message_processable(Message $message)
 	{
-		if ($message->originator() instanceof Client) $this->process_client_message($message);
-		else throw new MessageException();
-	}
-	
-	protected function process_client_message(Message $message)
-	{
-		$code=$message->code();
-		if (!array_key_exists($code, $this->message_processors)) throw new MessageException();
-		$method=$this->message_processors[$code];
-		$this->$method($message);
+		return $message->originator() instanceof Client;
 	}
 	
 	protected function process_auth_message(Message $message)
@@ -295,7 +290,7 @@ class ChatServer implements MessageNode
 	
 	protected function followup_client_authorization(Client $client)
 	{
-		$client->create_identity_message($this)->deliver($client);
+		$client->agent()->create_identity_message($this)->deliver($client);
 		$this->console_thread()->welcome_client($client);
 	}
 	
@@ -321,6 +316,19 @@ class ChatServer implements MessageNode
 	protected function send_data_to_client(Client $client, $data)
 	{
 		$this->server->wsSend($client->id(), $data);
+	}
+	
+	public function on_handle_change($agent, $old_handle=null)
+	{
+		$agent->create_identity_message($this)->deliver($agent);
+
+		$template=Template_from_db::with_db_key(static::MY_HANDLE_CHANGED_KEY);
+		$template->custom_elements['old_handle']=(string)$old_handle;
+		$template->context=$agent;
+		$message=$this->console_thread()->create_thread_message('notify', $template, $this);
+		$message->deliver($agent);
+		
+		// WIP: также нужно оповестить заинтересованные треды!
 	}
 	
 	#########################
@@ -361,6 +369,39 @@ class ChatServer implements MessageNode
 	public function console_thread()
 	{
 		return $this->threads[static::CONSOLE_THREAD_KEY];
+	}
+	
+	public function thread_by_title($title)
+	{
+		foreach ($this->threads as $thread)
+		{
+			if (duck_instanceof($thread, 'ThreadTitle') and $thread->title()===$title) return $thread;
+		}
+	}
+	
+	public function can_create_thread($title, &$deny_reason)
+	{
+		$thread=$this->thread_by_title($title);
+		if ($thread)
+		{
+			$deny_reason='title_taken';
+			return false;
+		}
+		return true;
+	}
+	
+	public function register_thread(Thread $thread)
+	{
+		$ident=$thread->ident();
+		if (array_key_exists($ident, $this->threads) and $this->threads[$ident]!==$thread) throw new ThreadException();
+		$this->threads[$ident]=$thread;
+	}
+	
+	public function reregister_thread(Thread $thread)
+	{
+		$ident=$thread->ident();
+		if (array_key_exists($ident, $this->threads) and $this->threads[$ident]!==$thread) throw new ThreadException();
+		unset($this->threads[$ident]);
 	}
 	
 	##############

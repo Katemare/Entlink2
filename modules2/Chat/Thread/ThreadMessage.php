@@ -36,6 +36,13 @@ class ThreadMessage extends Message implements MemberableLink
 		if ($this->target instanceof MemberableLink) return $this->target->get_memberable();
 		throw new ThreadException();
 	}
+	
+	public function get_agent()
+	{
+		if ($this->originator instanceof AgentLink) return $this->originator->get_agent();
+		if ($this->target instanceof AgentLink) return $this->target->get_agent();
+		throw new ThreadException();
+	}
 }
 
 // this is a "print" that a message leaves in a ThreadLog. it's not an event but a retelling of an event.

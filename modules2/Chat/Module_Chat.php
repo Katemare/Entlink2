@@ -39,12 +39,17 @@ class Module_Chat extends Module implements Templater
 			'MessageTarget' 	=>'Message/Message_interfaces',
 			'MessageNode' 		=>'Message/Message_interfaces',
 			
+			'MessageProcessor'	=>'Message/MessageProcessor',
+			'StandardMessageProcessor'=>'Message/MessageProcessor',
+			
 			'Thread'		=>'Thread/Thread',
 			'MemberableLink'=>'Thread/Thread',
 			'ThreadType'	=>'Thread/Thread',
-			'TopicThread'	=>'Thread/Thread',
-			'PrivateThread'	=>'Thread/Thread',
 			'ThreadException'=>'Thread/Thread',
+			
+			'GroupThread'	=>'Thread/GroupThread',
+			'TopicThread'	=>'Thread/TopicThread',
+			'PrivateThread'	=>'Thread/PrivateThread',
 			
 			'ThreadMessage'	=>'Thread/ThreadMessage',
 			'LoggedMessage'	=>'Thread/ThreadMessage',
@@ -55,12 +60,17 @@ class Module_Chat extends Module implements Templater
 			'StandardMemberable'=>'Thread/ThreadMembership',
 			
 			'Bot'			=>'Bot/Bot',
+			'Commandable'	=>'Bot/Command',
 			
 			'ConsoleBot'	=>'Bot/ConsoleBot',
 			'ConsoleThread'	=>'Bot/ConsoleBot',
 			
-			'Command'		=>true,
-			'BoundCommand'	=>'Command',
+			'Command'			=>'Bot/Command',
+			'BoundCommand'		=>'Bot/Command',
+			'SingleWordCommand'	=>'Bot/Command',
+			
+			'CommandTicket'		=>'Bot/CommandTicket',
+			'CommandTicket_denied'=>'Bot/CommandTicket',
 			
 			'Topic'			=>'Thread/Topic'
 		],

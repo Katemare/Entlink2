@@ -2,7 +2,7 @@
 
 // представляет соединение между сервером и клиентом.
 // возможно несколько соединений от одного пользователя, но не обратное.
-class Client implements MessageNode, Identity, HasIdent, MemberableLink
+class Client implements MessageNode, Identity, HasIdent, AgentLink
 {
 	use SendMeErrorOnBouncedMessage, IdentityTemplater;
 	
@@ -62,11 +62,13 @@ class Client implements MessageNode, Identity, HasIdent, MemberableLink
 	protected function authorize_as_user($id)
 	{
 		$this->agent=Server()->get_user_agent($id);
+		$this->agent->register_client($this);
 	}
 	
 	protected function authorize_as_anon($token)
 	{
 		$this->agent=Server()->get_anon_agent($token);
+		$this->agent->register_client($this);
 	}
 	
 	public function on_disconnected()
@@ -115,23 +117,20 @@ class Client implements MessageNode, Identity, HasIdent, MemberableLink
 		throw new IdentityException();
 	}
 	
-	public function create_identity_message(MessageOriginator $originator=null)
-	{
-		$server=Server();
-		if ($originator===null) $originator=$this;
-		$message=new Message($originator, $server::SERVER_CODE_IDENT, $this->identity_data());
-		return $message;
-	}
-	
 	################################
-	### MemberableLink interface ###
+	### AgentLink interface ###
 	################################
 	
-	public function get_memberable()
+	public function get_agent()
 	{
 		if (!$this->is_authorized()) throw new IdentityException();
 		if (!$this->agent instanceof Memberable) throw new IdentityException();
 		return $this->agent;
+	}
+	
+	public function get_memberable()
+	{
+		return $this->get_agent();
 	}
 	
 	##########################

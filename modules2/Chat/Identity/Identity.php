@@ -52,6 +52,21 @@ trait StandardPersona
 	public function collides_with_handle($handle) { return $this->handle()===$handle; }
 }
 
+interface PersonaProxy extends Persona
+{
+	public function persona();
+}
+
+trait StandardPersonaProxy
+{
+	public function ident() { return $this->persona()->ident(); }
+	public function handle() { return $this->persona()->handle(); }
+	public function identity_data() { return $this->persona()->identity_data(); }
+	public function collides_with(Identity $identity) { return $this->persona()->collides_with($identity); }
+	public function collides_with_handle($handle) { return $this->persona()->collides_with_handle($handle); }
+	public function template($code, $line=[]) { return $this->persona()->template($code, $line); }
+}
+
 class IdentityException extends \Exception implements ChatException
 {
 	use StandardChatException;
